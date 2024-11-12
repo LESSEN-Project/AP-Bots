@@ -23,7 +23,7 @@ os.makedirs(pred_path, exist_ok=True)
 if dataset.name == "lamp":
     ids = dataset.get_ids()    
 
-LLMs = ["MINISTRAL-8B-INSTRUCT", "LLAMA-3.2-3B", "LLAMA-3.1-8B", "GEMMA-2-2B", "GEMMA-2-9B", "GEMMA-2-27B"]
+LLMs = ["MINISTRAL-8B-INSTRUCT", "LLAMA-3.2-3B", "GEMMA-2-2B", "LLAMA-3.1-8B", "GEMMA-2-9B", "GEMMA-2-27B"]
 # LLMs = ["GPT-4o-mini"]
 
 queries, retr_texts, retr_gts = dataset.get_retr_data() 
@@ -49,11 +49,11 @@ if args.counter_examples:
     all_ce_examples = retriever.contrastive_retrieval(queries, retr_texts, retr_gts, args.counter_examples, ce_k)
     final_feature_list.append(f"CE({args.counter_examples})")
 
-print(f"Running experiments for {dataset.tag} with Features: {final_feature_list}, Retriever: {args.retriever}, and K: {k}")
+print(f"Running experiments for {dataset.tag} with Features: {final_feature_list}, Retriever: {args.retriever}, Repetition Step: {args.repetition_step}, and K: {k}")
 sys.stdout.flush()
 
 for model_name in LLMs:
-    exp_name = f"{dataset.tag}_{model_name}_{final_feature_list}_{args.retriever}_K({k}))"
+    exp_name = f"{dataset.tag}_{model_name}_{final_feature_list}_{args.retriever}_RS({args.repetition_step})_K({k}))"
     pred_out_path = f"{pred_path}/{exp_name}.json"
     if os.path.exists(pred_out_path):
         with open(pred_out_path, "rb") as f:
@@ -92,7 +92,7 @@ for model_name in LLMs:
 
         start_bot_time = time.time() 
 
-        prompt = prepare_res_prompt(dataset, query, llm, examples=context, features=features, counter_examples=ce_examples)
+        prompt = prepare_res_prompt(dataset, query, llm, examples=context, features=features, counter_examples=ce_examples, repetition_step=args.repetition_step)
         prompt = [{"role": "user", "content": prompt}]
         res = llm.prompt_chatbot(prompt, gen_params={"max_new_tokens": MAX_NEW_TOKENS})
         id = ids[cont_idx] if dataset.name == "lamp" else cont_idx

@@ -1,7 +1,7 @@
-def prepare_res_prompt(dataset, query, llm, examples, features=None, counter_examples=None):
+def prepare_res_prompt(dataset, query, llm, examples, features=None, counter_examples=None, repetition_step=1):
 
     if dataset.name == "lamp":
-        init_prompt = get_lamp_prompts(dataset.num)
+        init_prompt = get_lamp_prompts(dataset.num, repetition_step)
     elif dataset.name == "amazon":
         init_prompt = amazon_prompt()
     
@@ -48,7 +48,7 @@ def amazon_prompt() -> str:
                      Review:""")
 
 
-def get_lamp_prompts(dataset_num: int) -> str:
+def get_lamp_prompts(dataset_num: int, repetition_step) -> str:
 
     lamp_prompts = {
         4: _lamp_prompt_4,
@@ -56,33 +56,35 @@ def get_lamp_prompts(dataset_num: int) -> str:
         7: _lamp_prompt_7
     }
     
-    return lamp_prompts.get(dataset_num)()
+    return lamp_prompts.get(dataset_num)(repetition_step)
 
 
-def _lamp_prompt_4() -> str:
+def _lamp_prompt_4(repetition_step) -> str:
 
-    return strip_all("""You are a news editor that generates titles for articles. You will be provided a set of features to help you understand your writing style.
-                     First feature you will receive is similar article-title pairs from your past works:
-                     <similarpairs>
-                     {examples}
-                     </similarpairs>
-                     Now you will receive features shedding light into how you use words and formulate sentences:
-                     <features>
-                     {features}
-                     </features>
-                     Finally, you will receive article-title pairs from other editors to help you distinguish your style from others.
-                     <otherwriters>
-                     {counter_examples}
-                     </otherwriters>
-                     Using the features, generate the proper title. If you haven't received some of the features, only make use of the provided ones. 
-                     Only output the title and nothing else.
-                     Article: 
-                     {query}
-                     Title:""")
+    features = strip_all("""You are a news editor that generates titles for articles. You will be provided a set of features to help you understand your writing style.
+                    First feature you will receive is similar article-title pairs from your past works:
+                    <similarpairs>
+                    {examples}
+                    </similarpairs>
+                    Now you will receive features shedding light into how you use words and formulate sentences:
+                    <features>
+                    {features}
+                    </features>
+                    Finally, you will receive article-title pairs from other editors to help you distinguish your style from others.
+                    <otherwriters>
+                    {counter_examples}
+                    </otherwriters>""")
 
-def _lamp_prompt_5() -> str:
+    instruction = """Using the features, generate the proper title. If you haven't received some of the features, only make use of the provided ones. Only output the title and nothing else."""
+    instruction = "\n".join([instruction]*repetition_step)
+    prompt = strip_all(f"{features}\n{instruction}\n")
 
-    return strip_all("""You are a scholar that generates titles for abstracts. You will be provided a set of features to help you understand your writing style.
+    return prompt + """\nArticle:\n{query}\nTitle:"""
+
+
+def _lamp_prompt_5(repetition_step) -> str:
+
+    features = strip_all("""You are a scholar that generates titles for abstracts. You will be provided a set of features to help you understand your writing style.
                      First feature you will receive is similar abstract-title pairs from your past works:
                      <similarpairs>
                      {examples}
@@ -94,16 +96,18 @@ def _lamp_prompt_5() -> str:
                      Finally, you will receive abstract-title pairs from other scholars to help you distinguish your style from others.
                      <otherwriters>
                      {counter_examples}
-                     </otherwriters>
-                     Using the features, generate the proper title. If you haven't received some of the features, only make use of the provided ones. 
-                     Only output the title and nothing else.
-                     Abstract:
-                     {query}
-                     Title:""")
+                     </otherwriters>""")
 
-def _lamp_prompt_7() -> str:
+    instruction = """Using the features, generate the proper title. If you haven't received some of the features, only make use of the provided ones. Only output the title and nothing else."""
+    instruction = "\n".join([instruction]*repetition_step)
+    prompt = strip_all(f"{features}\n{instruction}\n")
 
-    return strip_all("""You are a Twitter user. Here is a set of your past tweets:
+    return prompt + """\nAbstract:\n{query}\nTitle:"""
+
+
+def _lamp_prompt_7(repetition_step) -> str:
+
+    features = strip_all("""You are a Twitter user. Here is a set of your past tweets:
                      <pasttweets>
                      {examples}
                      </pasttweets>
@@ -114,10 +118,10 @@ def _lamp_prompt_7() -> str:
                      Finally, here are some tweets from other users:
                      <otherwriters>
                      {counter_examples}
-                     </otherwriters>
-                     Now you will receive your last tweet:
-                     Tweet:
-                     {query}
-                     Using the provided information, rephrase the tweet so it better reflects your writing style. If you haven't received some of the information, only make use of the provided ones.
-                     Only output the rephrased tweet and nothing else.
-                     Rephrased Tweet:""")
+                     </otherwriters>""")
+
+    instruction = """Using the provided information, rephrase the following tweet so it better reflects your writing style. If you haven't received some of the information, only make use of the provided ones. Only output the rephrased tweet and nothing else."""
+    instruction = "\n".join([instruction]*repetition_step)
+    prompt = strip_all(f"{features}\n{instruction}\n")
+
+    return prompt + """\nTweet:\n{query}\nRephrased Tweet:"""
