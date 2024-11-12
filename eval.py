@@ -24,19 +24,18 @@ bleu = load("bleu")
 cols.extend(["rouge1", "rouge2", "rougeL", "rougeLsum", "bleu"])
 
 for file in os.listdir(preds_dir):
+
     if file.startswith(dataset.tag) and file.endswith(".json"):
+
         params = file[len(dataset.tag)+1:-5].split("_")
+
         k = re.findall(r'\((.*?)\)', params[-1])[0]
         retriever = params[2]
         features = params[1]
         if features != "None":
             features = ":".join(eval(features))
         model = params[0]
-
-        if len(params) == 5:
-            rs = re.findall(r'\((.*?)\)', params[-2])[0]
-        else:
-            rs = 1
+        rs = re.findall(r'\((.*?)\)', params[-2])[0]
 
         with open(os.path.join(preds_dir, file), "r") as f:
             preds = json.load(f)["golds"]
@@ -45,7 +44,8 @@ for file in os.listdir(preds_dir):
         if len(preds) != len(out_gts):
             continue
 
-        print(model, retriever, features, k)
+        print(f"Model: {model}, Retriever: {retriever}, Features: {features}, RS: {rs}, K: {k}")
+
         res_dict = {    
             "model": model,
             "features": features,
@@ -53,10 +53,12 @@ for file in os.listdir(preds_dir):
             "k": k,
             "RS": rs
         }
+
         rouge_results = rouge.compute(predictions=preds, references=out_gts)
         bleu_results = bleu.compute(predictions=preds, references=[[gt] for gt in out_gts])
         res_dict = res_dict | rouge_results
         res_dict["bleu"] = bleu_results["bleu"]
+        
         all_res.append(res_dict)
 
 df = pd.DataFrame(all_res)

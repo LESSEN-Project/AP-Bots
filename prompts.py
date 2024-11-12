@@ -118,10 +118,13 @@ def _lamp_prompt_7(repetition_step) -> str:
                      Finally, here are some tweets from other users:
                      <otherwriters>
                      {counter_examples}
-                     </otherwriters>""")
+                     </otherwriters>
+                     Now you will receive your last tweet:
+                     Tweet:
+                     {query}""")
 
-    instruction = """Using the provided information, rephrase the following tweet so it better reflects your writing style. If you haven't received some of the information, only make use of the provided ones. Only output the rephrased tweet and nothing else."""
+    instruction = """Using the provided information, rephrase your last tweet so it better reflects your writing style. If you haven't received some of the information, only make use of the provided ones. Only output the rephrased tweet and nothing else."""
     instruction = "\n".join([instruction]*repetition_step)
     prompt = strip_all(f"{features}\n{instruction}\n")
 
-    return prompt + """\nTweet:\n{query}\nRephrased Tweet:"""
+    return prompt + """\nRephrased Tweet:"""
