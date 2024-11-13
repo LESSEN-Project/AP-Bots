@@ -27,7 +27,7 @@ LLMs = ["MINISTRAL-8B-INSTRUCT", "LLAMA-3.2-3B", "GEMMA-2-2B", "LLAMA-3.1-8B", "
 # LLMs = ["GPT-4o-mini"]
 
 queries, retr_texts, retr_gts = dataset.get_retr_data() 
-if not args.top_k:
+if args.top_k == -1:
     k = get_k(retr_texts)
 else:
     k = args.top_k
@@ -53,24 +53,29 @@ print(f"Running experiments for {dataset.tag} with Features: {final_feature_list
 sys.stdout.flush()
 
 for model_name in LLMs:
+
     exp_name = f"{dataset.tag}_{model_name}_{final_feature_list}_{args.retriever}_RS({args.repetition_step})_K({k}))"
     pred_out_path = f"{pred_path}/{exp_name}.json"
+
     if os.path.exists(pred_out_path):
         with open(pred_out_path, "rb") as f:
              all_res = json.load(f)["golds"]
     else:
         all_res = []
+
     print(model_name) 
-    
     if len(all_res) == len(queries):
         print("Experiment for this LLM is already concluded!")
         continue
 
     llm = LLM(model_name=model_name)
+
     print(f"Starting from sample no. {len(all_res)}")
+
     start_time = time.time()
     print(subprocess.run("gpustat")) 
     sys.stdout.flush() 
+
     cont_idx = copy.copy(len(all_res))
 
     for _ in range(len(queries) - len(all_res)):
@@ -94,6 +99,7 @@ for model_name in LLMs:
 
         prompt = prepare_res_prompt(dataset, query, llm, examples=context, features=features, counter_examples=ce_examples, repetition_step=args.repetition_step)
         prompt = [{"role": "user", "content": prompt}]
+
         res = llm.prompt_chatbot(prompt, gen_params={"max_new_tokens": MAX_NEW_TOKENS})
         id = ids[cont_idx] if dataset.name == "lamp" else cont_idx
 

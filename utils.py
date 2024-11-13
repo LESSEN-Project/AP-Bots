@@ -12,7 +12,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     
     parser.add_argument("-d", "--dataset", default="lamp_5_dev_user", type=str)
-    parser.add_argument("-k", "--top_k", default=None, type=int)
+    parser.add_argument("-k", "--top_k", default=-1, type=int)
     parser.add_argument('-f', '--features', nargs='+', type=str, default=None)
     parser.add_argument("-r", "--retriever", default="contriever", type=str)
     parser.add_argument("-ce", "--counter_examples", default=None, type=int)

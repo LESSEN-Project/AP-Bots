@@ -5,8 +5,9 @@ def prepare_res_prompt(dataset, query, llm, examples, features=None, counter_exa
     elif dataset.name == "amazon":
         init_prompt = amazon_prompt()
     
+    feat_values = ""
     if features:
-        features = "\n".join(features)
+        feat_values = "\n".join(features)
     
     context = llm.prepare_context(init_prompt, f"{query}\n{features}", examples) 
     ce_examples = ""
@@ -14,12 +15,12 @@ def prepare_res_prompt(dataset, query, llm, examples, features=None, counter_exa
     if counter_examples:
         i = 0
         for ce_example in counter_examples:
-            ce_context = llm.prepare_context(init_prompt, f"{query}\n{features}\n{context}", ce_example) 
+            ce_context = llm.prepare_context(init_prompt, f"{query}\n{feat_values}\n{context}", ce_example) 
             if context:
                 i += 1
                 ce_examples = f"{ce_examples}\n<Other Writer-{i}>\n{ce_context}\n</Other Writer-{i}>\n"
 
-    return init_prompt.format(query=query, examples=context, features=features, counter_examples=ce_examples)
+    return init_prompt.format(query=query, examples=context, features=feat_values, counter_examples=ce_examples)
 
 
 def strip_all(text: str) -> str:

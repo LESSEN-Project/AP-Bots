@@ -8,6 +8,7 @@ from sentence_transformers import SentenceTransformer
 
 
 class Retriever:
+
     def __init__(self, dataset, model: str = "contriever", device: str = "cuda:0"):
 
         self.model = model
@@ -104,10 +105,15 @@ class Retriever:
 
     def get_context(self, queries: List[str], retr_texts: List[List[str]], retr_gts: List[List[str]], k: str) -> List[List[str]]:
 
+        if k == 0:
+            return [""] * len(queries)
+
         all_idxs = self.check_file()
         all_examples = []
         _, retr_gt_name, retr_prompt_name = self.dataset.get_var_names()
+
         for i, query in enumerate(queries):
+            
             retr_text = retr_texts[i]
             retr_gt = retr_gts[i]
             if len(all_idxs) > i:
@@ -122,11 +128,13 @@ class Retriever:
 
             texts = [retr_text[doc_id] for doc_id in sorted_idxs[:k]]                
             gts = [retr_gt[doc_id] for doc_id in sorted_idxs[:k]]
+
             if isinstance(retr_gt_name, tuple):
                 _, doc_ratings = self.dataset.get_ratings(i)
                 doc_ratings = [doc_ratings[doc_id] for doc_id in sorted_idxs[:k]]
                 
             examples = []
+
             for i, (text, gt) in enumerate(zip(texts, gts)):
                 if text != gt:      
                     if isinstance(retr_gt_name, tuple):
@@ -137,4 +145,5 @@ class Retriever:
                     example = f"{retr_prompt_name.capitalize()}:\n{text}"
                 examples.append(example)
             all_examples.append(examples)
+
         return all_examples
