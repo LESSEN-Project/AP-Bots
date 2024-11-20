@@ -28,6 +28,7 @@ class Dataset(ABC):
 
 
 class LampDataset(Dataset):
+
     def __init__(self, num, data_split="dev", split="user", dataset_dir="datasets"):
         self.name = "lamp"
         self.num = num
@@ -38,6 +39,7 @@ class LampDataset(Dataset):
         self.dataset = None
 
     def get_dataset(self):
+
         os.makedirs(self.dataset_dir, exist_ok=True)
         data_path = os.path.join(self.dataset_dir, f"{self.tag}_data.json")
 
@@ -140,6 +142,7 @@ class LampDataset(Dataset):
 
 
 class AmazonDataset(Dataset):
+
     def __init__(self, category, year, dataset_dir="datasets"):
         self.name = "amazon"
         self.category = category
@@ -147,81 +150,74 @@ class AmazonDataset(Dataset):
         self.dataset = None
         self.tag = f"amazon_{self.category}_{self.year}"
         self.dataset_dir = dataset_dir
+        self.min_user_samples = 10
 
     def get_dataset(self):
+
         dfs = self.get_amazon_dfs()
         df, df_meta = self.process_dfs(dfs)
         data_path = os.path.join(self.dataset_dir, f"amazon_{self.category}_{self.year}_user_data.json")
         user_var = "user_id" if self.year == 2023 else "reviewerID"
 
         user_counts = df[user_var].value_counts()
-        min_samples = 50 if self.category == "Movies_and_TV" else 5
-        users_with_enough_samples = user_counts[user_counts >= min_samples].index
+        users_with_enough_samples = set(user_counts[user_counts >= self.min_user_samples].index)
         df = df[df[user_var].isin(users_with_enough_samples)]
 
         all_users = df[user_var].unique()
-        if not os.path.exists(data_path):
-            all_user_data = []
-            start_idx = 0
-        else:
+        if os.path.exists(data_path):
             with open(data_path, "r") as f:
                 all_user_data = json.load(f)
                 if len(all_user_data) == len(all_users):
                     print("User data for this category is already created!")
                     return all_user_data
-                else:
-                    start_idx = len(all_user_data)
+                start_idx = len(all_user_data)
+        else:
+            all_user_data = []
+            start_idx = 0
+
         print("Processing user data...")
         print(f"Number of users: {len(all_users)}")
-        for num_user, user_id in enumerate(all_users[start_idx:]):
-            if self.year == 2018:
-                sample_user = df[df[user_var] == user_id].sort_values("unixReviewTime")
-                sample_user = sample_user.merge(right=df_meta[["asin", "brand", "title", "description"]], on="asin", how="inner")
-            else:
-                sample_user = df[df[user_var] == user_id].sort_values("timestamp").rename(columns={"title": "reviewTitle", "text": "reviewText"})
-                sample_user = sample_user.merge(right=df_meta[["parent_asin", "store", "title", "categories", "description", "details"]], on="parent_asin", how="inner")
-                sample_user = sample_user.rename(columns={"title": "productTitle"})
-            user_data = {}
-            i = 1
-            user_history = []
-            for _, row in sample_user.iterrows():
-                if self.year == 2018:
-                    date_time = datetime.datetime.fromtimestamp(row["unixReviewTime"])
-                else:
-                    date_time = datetime.datetime.fromtimestamp(timestamp=row["timestamp"]/1000)
+
+        df_meta = df_meta.set_index('asin' if self.year == 2018 else 'parent_asin')
+
+        for num_user, user_id in enumerate(all_users[start_idx:], start=start_idx):
+
+            sample_user = df[df[user_var] == user_id].sort_values("unixReviewTime" if self.year == 2018 else "timestamp")
+            sample_user = sample_user.join(df_meta, on='asin' if self.year == 2018 else 'parent_asin', how='inner')
+            
+            user_data = {
+                "ID": user_id,
+                "History": []
+            }
+            
+            for idx, row in sample_user.iterrows():
+                date_time = datetime.datetime.fromtimestamp(row["unixReviewTime"] if self.year == 2018 else row["timestamp"] / 1000)
                 formatted_date = date_time.strftime("%Y-%m-%d %H:%M:%S")
-                if self.year == 2018:
-                    prod_info = {
-                        "Name": row["title"],
-                        "Descriptions": row["description"],
-                        "Review": row["reviewText"],
-                        "Score": row["overall"],
-                        "Review Time": formatted_date
-                    }
-                else:
-                    prod_info = {
-                        "Name": row["productTitle"],
-                        "Descriptions": row["description"],
-                        "Details": row["details"],
-                        "Review": row["reviewText"],
-                        "Score": row["rating"],
-                        "Review Time": formatted_date
-                    }
-                if i == len(sample_user):
+
+                prod_info = {
+                    "Name": row["title" if self.year == 2018 else "productTitle"],
+                    "Descriptions": row["description"],
+                    "Review": row["reviewText"],
+                    "Score": row["overall" if self.year == 2018 else "rating"],
+                    "Review Time": formatted_date
+                }
+                
+                if idx == sample_user.index[-1]:
                     user_data["Product"] = prod_info
                 else:
-                    user_history.append(prod_info)
-                i += 1
-            user_data["History"] = user_history
-            user_data["ID"] = user_id
+                    user_data["History"].append(prod_info)
+
             all_user_data.append(user_data)
-            if (num_user+1) % 500 == 0:
-                print(f"Step: {num_user+start_idx}")
+
+            if (num_user + 1) % 500 == 0:
+                print(f"Step: {num_user + 1}")
                 with open(data_path, "w") as f:
                     json.dump(all_user_data, f)
+
         print("Finished processing user data!")
         with open(data_path, "w") as f:
             json.dump(all_user_data, f)
+
         self.dataset = all_user_data
         return all_user_data
 

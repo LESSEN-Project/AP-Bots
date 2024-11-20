@@ -2,7 +2,6 @@ import os
 import time
 import json
 import sys
-import subprocess
 import copy
 
 import torch 
@@ -73,7 +72,6 @@ for model_name in LLMs:
     print(f"Starting from sample no. {len(all_res)}")
 
     start_time = time.time()
-    print(subprocess.run("gpustat")) 
     sys.stdout.flush() 
 
     cont_idx = copy.copy(len(all_res))

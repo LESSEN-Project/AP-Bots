@@ -4,7 +4,8 @@ from pathlib import Path
 import warnings
 warnings.filterwarnings("ignore")
 
-from huggingface_hub import login
+from huggingface_hub import login, logging
+logging.set_verbosity_error()
 import tiktoken
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, logging
 logging.set_verbosity_error()

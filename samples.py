@@ -15,7 +15,7 @@ rand_samples = np.random.choice(range(len(out_gts)), rand_k, replace=False)
 
 model_samples = {}
 for file in os.listdir(preds_dir):
-    if file.startswith(args.dataset) and file.endswith(".json") and "LLAMA" in file:
+    if file.startswith(args.dataset) and file.endswith(".json") and "K(0)" in file:
         with open(os.path.join(preds_dir, file), "r") as f:
             preds = json.load(f)["golds"]
             preds = [p["output"] for p in preds]
