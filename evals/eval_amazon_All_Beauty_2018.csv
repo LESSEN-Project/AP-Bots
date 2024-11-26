@@ -1,6 +1,0 @@
-model,features,retriever,k,avg_ce,rouge1,rouge2,rougeL,rougeLsum,bleu
-GEMMA-2-9B,DPF:WF:NEF:CE(3),contriever,50,False,0.2706,0.0448,0.1566,0.1781,0.0201
-GEMMA-2-27B,DPF:WF:NEF:CE(3),contriever,50,False,0.259,0.0343,0.1578,0.1769,0.0088
-GEMMA-2-9B,CE(1),contriever,50,True,0.2684,0.03,0.1531,0.1768,0.0095
-GEMMA-2-27B,WF,contriever,50,False,0.2615,0.0481,0.1652,0.182,0.013
-GEMMA-2-9B,WF,contriever,50,False,0.2918,0.0496,0.1562,0.1797,0.0199
