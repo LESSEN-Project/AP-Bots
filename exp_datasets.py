@@ -3,10 +3,12 @@ import re
 import json
 import requests
 import gzip
-import pandas as pd
 import datetime
 import urllib
 from abc import ABC, abstractmethod
+
+import itertools
+import pandas as pd
 
 
 class Dataset(ABC):
@@ -150,7 +152,7 @@ class AmazonDataset(Dataset):
         self.dataset = None
         self.tag = f"amazon_{self.category}_{self.year}"
         self.dataset_dir = dataset_dir
-        self.min_user_samples = 10
+        self.min_user_samples = 20
 
     def get_dataset(self):
 
@@ -232,23 +234,35 @@ class AmazonDataset(Dataset):
         retr_prompt_name = "Product"
         return retr_text_name, retr_gt_name, retr_prompt_name
 
-    def get_ratings(self, idx):
-        if not self.dataset:
-            self.dataset = self.get_dataset()
-        return self.dataset[idx]["Product"]["Score"], [item["Score"] for item in self.dataset[idx]["History"]]
-
     def get_retr_data(self):
         queries = []
-        retr_text = []
+        retr_texts = []
         retr_gts = []
         if not self.dataset:
             self.dataset = self.get_dataset()
         for sample in self.dataset:
             queries.append(sample["Product"]["Name"])
-            retr_text.append([item["Name"] for item in sample["History"]])
-            retr_gts.append([item["Review"] for item in sample["History"]])
-        return queries, retr_text, retr_gts
+            retr_texts.append([item["Name"] for item in sample["History"]])
+            retr_gts.append([str(item["Review"]) if not isinstance(item["Review"], str) else item["Review"] for item in sample["History"]])
+        return queries, retr_texts, retr_gts
     
+    def get_ratings(self, idx):
+        if not self.dataset:
+            self.dataset = self.get_dataset()
+        return self.dataset[idx]["Product"]["Score"], [item["Score"] for item in self.dataset[idx]["History"]]
+
+    def get_statistics(self):
+
+        _, _, retr_gts = self.get_retr_data()
+        all_reviews = list(itertools.chain.from_iterable(retr_gts))
+        all_reviews = [str(review) for review in all_reviews]
+
+        word_counts = [len(review.split(" ")) for review in all_reviews]
+        df = pd.Series(word_counts)
+
+        print(df.value_counts(ascending=False))
+        print(df.describe())  
+
     def download_amazon_datasets(self, target_dest="datasets"):
         os.makedirs(target_dest, exist_ok=True)
         review_link, review_save_loc = self.get_review_links(target_dest)

@@ -27,9 +27,9 @@ def strip_all(text: str) -> str:
     return "\n".join(line.strip() for line in text.splitlines())    
 
 
-def amazon_prompt() -> str:
+def amazon_prompt(repetition_step=1) -> str:
 
-    return strip_all("""You are an Amazon customer that likes to write reviews for products. You will be provided a set of features to help you understand your writing style.
+    features = strip_all("""You are an Amazon customer that likes to write reviews for products. You will be provided a set of features to help you understand your writing style.
                      First feature you will receive is similar product-review pairs from your past reviews to remind you of your style:
                      <similarpairs>
                      {examples}
@@ -41,12 +41,13 @@ def amazon_prompt() -> str:
                      Finally, you will receive product-review pairs from other customers to help you distinguish your style from others.
                      <otherwriters>
                      {counter_examples}
-                     </otherwriters>
-                     Using the features, generate the proper review. If you haven't received some of the features, only make use of the provided ones. 
-                     Only output the review and nothing else.
-                     Product:
-                     {query}
-                     Review:""")
+                     </otherwriters>""")
+    
+    instruction = """Using the features, generate the proper review. If you haven't received some of the features, only make use of the provided ones. Remember that ratings go from 1 to 5, 1 being the worst rating. Only output the review and nothing else."""
+    instruction = "\n".join([instruction] * repetition_step)
+    prompt = strip_all(f"{features}\n{instruction}\n")
+    
+    return prompt + """\nProduct: {query}\nReview:"""
 
 
 def get_lamp_prompts(dataset_num: int, repetition_step) -> str:
@@ -80,7 +81,7 @@ def _lamp_prompt_4(repetition_step) -> str:
     instruction = "\n".join([instruction]*repetition_step)
     prompt = strip_all(f"{features}\n{instruction}\n")
 
-    return prompt + """\nArticle:\n{query}\nTitle:"""
+    return prompt + """\nArticle: {query}\nTitle:"""
 
 
 def _lamp_prompt_5(repetition_step) -> str:
@@ -103,7 +104,7 @@ def _lamp_prompt_5(repetition_step) -> str:
     instruction = "\n".join([instruction]*repetition_step)
     prompt = strip_all(f"{features}\n{instruction}\n")
 
-    return prompt + """\nAbstract:\n{query}\nTitle:"""
+    return prompt + """\nAbstract: {query}\nTitle:"""
 
 
 def _lamp_prompt_7(repetition_step) -> str:
@@ -129,3 +130,22 @@ def _lamp_prompt_7(repetition_step) -> str:
     prompt = strip_all(f"{features}\n{instruction}\n")
 
     return prompt + """\nRephrased Tweet:"""
+
+
+def BFI_analysis(text):
+
+    return [{
+        "role": "system",
+        "content": "You are an expert psychologist in analyzing BFI."
+    },
+        {
+        "role": "user",
+        "content": f"""Based on the product reviews they give on Amazon, evaluate the author's personality traits according to the Big Five Inventory (BFI). Provide a score between 1 and 5 for each trait, where 1 indicates low expression and 5 indicates high expression. The traits are:
+                       1. **Openness:** Reflects imagination, creativity, and a willingness to consider new ideas. High scores indicate a preference for novelty and variety, while low scores suggest a preference for routine and familiarity.
+                       2. **Conscientiousness:** Pertains to organization, dependability, and discipline. High scores denote a strong sense of duty and goal-oriented behavior, whereas low scores may indicate a more spontaneous or flexible approach.
+                       3. **Extraversion:** Involves sociability, assertiveness, and enthusiasm. High scores are associated with being outgoing and energetic, while low scores suggest a reserved or introverted nature.
+                       4. **Agreeableness:** Relates to trustworthiness, altruism, and cooperation. High scores reflect a compassionate and friendly demeanor, whereas low scores may indicate a more competitive or challenging disposition.
+                       5. **Neuroticism:** Concerns emotional stability and tendency toward negative emotions. High scores indicate a propensity for experiencing stress and mood swings, while low scores suggest calmness and emotional resilience.
+                       Text: {text}
+                       Please respond in JSON format. Each trait should be a key, and it should have two values: the score and a brief explanation."""
+    }]

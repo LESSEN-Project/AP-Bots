@@ -7,7 +7,7 @@ import copy
 import torch 
 
 from models import LLM
-from utils import get_args, get_k, parse_dataset
+from utils import get_args, get_k, parse_dataset, oai_get_or_create_file
 from prompts import prepare_res_prompt
 from feature_processor import FeatureProcessor
 from retriever import Retriever
@@ -26,8 +26,9 @@ LLMs = ["MINISTRAL-8B-INSTRUCT", "LLAMA-3.2-3B", "GEMMA-2-2B", "LLAMA-3.1-8B", "
 # LLMs = ["GPT-4o-mini"]
 
 queries, retr_texts, retr_gts = dataset.get_retr_data() 
+
 if args.top_k == -1:
-    k = get_k(retr_texts)
+    k = get_k(retr_texts if dataset.name == "lamp" else retr_gts)
 else:
     k = args.top_k
 
@@ -67,6 +68,10 @@ for model_name in LLMs:
         print("Experiment for this LLM is already concluded!")
         continue
 
+    elif len(all_res) != 0 and args.openai_batch:
+        print("Batch openai jobs can only be done on the whole dataset!")
+        continue
+
     llm = LLM(model_name=model_name)
 
     print(f"Starting from sample no. {len(all_res)}")
@@ -83,7 +88,7 @@ for model_name in LLMs:
             query_rating, _ = dataset.get_ratings(cont_idx) 
             query = f"{query}\nRating:\n{query_rating}"
             
-        context = all_context[cont_idx]         
+        context = all_context[cont_idx]    
 
         if args.features:
             features = prepared_features[cont_idx]
@@ -97,34 +102,54 @@ for model_name in LLMs:
 
         prompt = prepare_res_prompt(dataset, query, llm, examples=context, features=features, counter_examples=ce_examples, repetition_step=args.repetition_step)
         prompt = [{"role": "user", "content": prompt}]
-
-        res = llm.prompt_chatbot(prompt, gen_params={"max_new_tokens": MAX_NEW_TOKENS})
         id = ids[cont_idx] if dataset.name == "lamp" else cont_idx
 
-        end_bot_time = time.time()
-        
-        all_res.append({
-                "id": id,
-                "output": res,
-                "prompt": prompt,
-                "model_inf_time": round(end_bot_time - start_bot_time, 2), 
-        })
+        if llm.family == "GPT" and args.openai_batch:
 
-        if (cont_idx+1)%500==0 or (cont_idx+1)==len(queries):
-            print(cont_idx)
-            with open(pred_out_path, "w") as f:
-                task = f"LaMP_{dataset.num}" if dataset.name == "lamp" else dataset.tag          
-                json.dump({
-                    "task": task,
-                    "golds": all_res
-                }, f)
+            with open(os.path.join("preds", f"{exp_name}.jsonl"), "a+") as file:
+                        json_line = json.dumps({"custom_id": str(id), "method": "POST", "url": "/v1/chat/completions", 
+                                                "body": {"model": llm.repo_id, 
+                                                "messages": prompt, "max_tokens": MAX_NEW_TOKENS}})
+                        file.write(json_line + '\n')
+
+        else:
+
+            res = llm.prompt_chatbot(prompt, gen_params={"max_new_tokens": MAX_NEW_TOKENS})
+            end_bot_time = time.time()
+            all_res.append({
+                    "id": id,
+                    "output": res,
+                    "prompt": prompt,
+                    "model_inf_time": round(end_bot_time - start_bot_time, 2), 
+            })
+
+            if (cont_idx+1)%500==0 or (cont_idx+1)==len(queries):
+                print(cont_idx)
+                with open(pred_out_path, "w") as f:
+                    task = f"LaMP_{dataset.num}" if dataset.name == "lamp" else dataset.tag          
+                    json.dump({
+                        "task": task,
+                        "golds": all_res
+                    }, f)
 
         sys.stdout.flush()
         cont_idx += 1 
 
-    end_time = time.time()
-    print(f"Took {(end_time-start_time)/3600} hours!")
+    if llm.family == "GPT" and args.openai_batch:
 
-    del llm
-    llm = []
-    torch.cuda.empty_cache()
+        print("Created batch job for the experiment!")
+        batch_input_file_id = oai_get_or_create_file(llm.model, f"{exp_name}.jsonl")
+
+        llm.model.batches.create(
+            input_file_id=batch_input_file_id,
+            endpoint="/v1/chat/completions",
+            completion_window="24h",
+        )       
+
+    else:
+
+        end_time = time.time()
+        print(f"Took {(end_time-start_time)/3600} hours!")
+        del llm
+        llm = []
+        torch.cuda.empty_cache()
