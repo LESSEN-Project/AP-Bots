@@ -11,7 +11,7 @@ def get_args():
 
     parser = argparse.ArgumentParser()
     
-    parser.add_argument("-d", "--dataset", default="lamp_5_dev_user", type=str)
+    parser.add_argument("-d", "--dataset", default="amazon_Grocery_and_Gourmet_Food_2018", type=str)
     parser.add_argument("-k", "--top_k", default=-1, type=int)
     parser.add_argument('-f', '--features', nargs='+', type=str, default=None)
     parser.add_argument("-r", "--retriever", default="contriever", type=str)

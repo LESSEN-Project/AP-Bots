@@ -115,13 +115,14 @@ class LLM:
         else:
             return len(self.tokenizer(prompt).input_ids)
         
-    def prepare_context(self, prompt, query, context, chat_history=[]):
+    def prepare_context(self, prompt, context, query=None, chat_history=[]):
 
         if chat_history:
             chat_history = self.trunc_chat_history(chat_history)
         if isinstance(prompt, str):
             prompt = [{"role": "user", "content": prompt}]
-        avail_space = self.get_avail_space(prompt + chat_history) - self.count_tokens(query)  
+        query_len = self.count_tokens(query) if query else 0
+        avail_space = self.get_avail_space(prompt + chat_history) - query_len  
         if avail_space:         
             while True:
                 info = "\n".join([doc for doc in context])
