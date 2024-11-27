@@ -6,14 +6,13 @@ from evaluate import load
 from openai import OpenAI
 import pandas as pd
 
-from utils import get_args, parse_dataset, oai_get_batch_res
+from utils.file_utils import oai_get_batch_res
+from utils.argument_parser import parse_args
 
-args = get_args()
-dataset = parse_dataset(args.dataset)
+_, dataset, _, _ = parse_args()
 
-preds_dir = "preds"
-os.makedirs(preds_dir, exist_ok=True)
-
+preds_dir = os.path.join("files", "preds")
+out_dir = os.path.join("evaluation", "files")
 client = OpenAI()
 oai_get_batch_res(client)
 
@@ -67,4 +66,4 @@ for file in os.listdir(preds_dir):
 df = pd.DataFrame(all_res)
 df = df[cols]
 df = df.round(dict([(c, 4) for c in df.columns if df[c].dtype == "float64"]))
-df.to_csv(os.path.join("evaluation", f"eval_{args.dataset}.csv"), index=False, columns=cols)
+df.to_csv(os.path.join(out_dir, f"eval_{dataset.tag}.csv"), index=False, columns=cols)
