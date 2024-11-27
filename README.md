@@ -1,5 +1,13 @@
 # AP-Bots: Adaptive, Personalized Chatbots
 
+## Table of Contents
+
+- [Personalized Text Generation with Contrastive Examples](#personalized-text-generation-with-contrastive-examples)
+  - [Description](#pers-description)  
+  - [Command-Line Arguments](#command-line-arguments)
+  - [Evaluation](#evaluation)
+- [Requirements](#requirements)
+  
 ## Requirements
 
 Ensure you have the following installed:
