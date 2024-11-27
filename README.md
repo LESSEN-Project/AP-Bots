@@ -3,32 +3,20 @@
 ## Table of Contents
 
 - [Personalized Text Generation with Contrastive Examples](#personalized-text-generation-with-contrastive-examples)
-  - [Description](#pers-description)  
-  - [Command-Line Arguments](#command-line-arguments)
+  - [Running Experiments](#running-experiments)
   - [Evaluation](#evaluation)
 - [Requirements](#requirements)
-  
-## Requirements
-
-Ensure you have the following installed:
-
-- **Python**: `>= 3.11.3`
-- **CUDA**: `>= 12`
-
-Install the required Python packages:
-
-```bash
-pip install -r requirements.txt
-```
 
 ## Personalized Text Generation with Contrastive Examples
+
+
+### Running Experiments
 
 Run an experiment with the following command:
 
 ```bash
 python run_exp.py -d lamp_5_dev_user -k 5 -f WF DPF -r contriever -ce 3
 ```
-### Command-Line Arguments
 
 | Argument                         | Data Type    | Description                                                                                                                | Default             |
 |----------------------------------|--------------|-------------------------------------------------------------------------------------------------------------------------|---------------------|
@@ -52,3 +40,15 @@ python -m evaluation.eval -d dataset_name
 
 This command evaluates all results in the preds folder for the specified dataset and generates a CSV file in the evaluation directory.
 
+## Requirements
+
+Ensure you have the following installed:
+
+- **Python**: `>= 3.11.3`
+- **CUDA**: `>= 12`
+
+Install the required Python packages:
+
+```bash
+pip install -r requirements.txt
+```
