@@ -31,7 +31,7 @@ def oai_get_or_create_file(client, filename):
         print(f"File '{filename}' already exists. File ID: {existing_file.id}")
         return existing_file.id
     else:
-        with open(os.path.join("preds", filename), "rb") as file_data:
+        with open(filename, "rb") as file_data:
             new_file = client.files.create(
                 file=file_data,
                 purpose="batch"
@@ -43,6 +43,7 @@ def oai_get_batch_res(client):
 
     batches = client.batches.list()
     files = client.files.list()
+    pred_path = os.path.join("files", "preds")
 
     for batch in batches:
         
@@ -51,7 +52,7 @@ def oai_get_batch_res(client):
         if filename and batch.output_file_id:
 
             merged_res = []
-            path_to_file = os.path.join("preds", filename[0])
+            path_to_file = os.path.join(pred_path, filename[0])
 
             data = []
             with open(path_to_file, "r") as f:
@@ -68,7 +69,7 @@ def oai_get_batch_res(client):
                     "output": res[0].strip(),
                     "model_inf_time": "n/a", 
             })
-            with open(os.path.join("preds", f"{filename[0].split('.')[0]}.json"), "w") as f:
+            with open(os.path.join(pred_path, f"{filename[0].split('.')[0]}.json"), "w") as f:
                 json.dump({
                     "golds": merged_res
                 }, f)

@@ -2,6 +2,7 @@ def prepare_res_prompt(dataset, query, llm, examples, features=None, counter_exa
 
     if dataset.name == "lamp":
         init_prompt = get_lamp_prompts(dataset.num, repetition_step)
+        
     elif dataset.name == "amazon":
         init_prompt = amazon_prompt()
     
@@ -21,6 +22,12 @@ def prepare_res_prompt(dataset, query, llm, examples, features=None, counter_exa
                 ce_examples = f"{ce_examples}\n<Other Writer-{i}>\n{ce_context}\n</Other Writer-{i}>\n"
 
     return init_prompt.format(query=query, examples=context, features=feat_values, counter_examples=ce_examples)
+
+
+def get_BFI_prompts(dataset, text):
+
+    if dataset.name == "amazon":
+        return amazon_BFI_analysis(text)
 
 
 def strip_all(text: str) -> str:
@@ -48,6 +55,25 @@ def amazon_prompt(repetition_step=1) -> str:
     prompt = strip_all(f"{features}\n{instruction}\n")
     
     return prompt + """\nProduct: {query}\nReview:"""
+
+
+def amazon_BFI_analysis(text):
+
+    return [{
+        "role": "system",
+        "content": "You are an expert psychologist in analyzing BFI."
+    },
+        {
+        "role": "user",
+        "content": strip_all(f"""Based on the product reviews they give on Amazon, evaluate a person's personality traits according to the Big Five Inventory (BFI). Provide a score between 1 and 5 for each trait, where 1 indicates low expression and 5 indicates high expression. The traits are:
+                       1. **Openness:** Reflects imagination, creativity, and a willingness to consider new ideas. High scores indicate a preference for novelty and variety, while low scores suggest a preference for routine and familiarity.
+                       2. **Conscientiousness:** Pertains to organization, dependability, and discipline. High scores denote a strong sense of duty and goal-oriented behavior, whereas low scores may indicate a more spontaneous or flexible approach.
+                       3. **Extraversion:** Involves sociability, assertiveness, and enthusiasm. High scores are associated with being outgoing and energetic, while low scores suggest a reserved or introverted nature.
+                       4. **Agreeableness:** Relates to trustworthiness, altruism, and cooperation. High scores reflect a compassionate and friendly demeanor, whereas low scores may indicate a more competitive or challenging disposition.
+                       5. **Neuroticism:** Concerns emotional stability and tendency toward negative emotions. High scores indicate a propensity for experiencing stress and mood swings, while low scores suggest calmness and emotional resilience.
+                       Reviews: {text}
+                       Please respond in JSON format. Each trait should be a key, and it should have two values: the score and a brief explanation.""")
+    }]
 
 
 def get_lamp_prompts(dataset_num: int, repetition_step) -> str:
@@ -130,22 +156,3 @@ def _lamp_prompt_7(repetition_step) -> str:
     prompt = strip_all(f"{features}\n{instruction}\n")
 
     return prompt + """\nRephrased Tweet:"""
-
-
-def BFI_analysis(text):
-
-    return [{
-        "role": "system",
-        "content": "You are an expert psychologist in analyzing BFI."
-    },
-        {
-        "role": "user",
-        "content": f"""Based on the product reviews they give on Amazon, evaluate a person's personality traits according to the Big Five Inventory (BFI). Provide a score between 1 and 5 for each trait, where 1 indicates low expression and 5 indicates high expression. The traits are:
-                       1. **Openness:** Reflects imagination, creativity, and a willingness to consider new ideas. High scores indicate a preference for novelty and variety, while low scores suggest a preference for routine and familiarity.
-                       2. **Conscientiousness:** Pertains to organization, dependability, and discipline. High scores denote a strong sense of duty and goal-oriented behavior, whereas low scores may indicate a more spontaneous or flexible approach.
-                       3. **Extraversion:** Involves sociability, assertiveness, and enthusiasm. High scores are associated with being outgoing and energetic, while low scores suggest a reserved or introverted nature.
-                       4. **Agreeableness:** Relates to trustworthiness, altruism, and cooperation. High scores reflect a compassionate and friendly demeanor, whereas low scores may indicate a more competitive or challenging disposition.
-                       5. **Neuroticism:** Concerns emotional stability and tendency toward negative emotions. High scores indicate a propensity for experiencing stress and mood swings, while low scores suggest calmness and emotional resilience.
-                       Reviews: {text}
-                       Please respond in JSON format. Each trait should be a key, and it should have two values: the score and a brief explanation."""
-    }]

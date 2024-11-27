@@ -14,7 +14,7 @@ class Retriever:
         self.model = model
         self.device = device
         self.dataset = dataset
-        self.save_loc = "retrieval_res"
+        self.save_loc = os.path.join("files", "retrieval_res")
         os.makedirs(self.save_loc, exist_ok=True)
         self._init_model()
 

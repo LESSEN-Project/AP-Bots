@@ -18,6 +18,8 @@ class FeatureProcessor():
         nltk.download('stopwords', quiet=True)  
         nltk.download('averaged_perceptron_tagger', quiet=True)
         self.nlp = spacy.load("en_core_web_sm")
+        self.save_loc = os.path.join("files", "features")
+        os.makedirs(self.save_loc, exist_ok=True)
 
     def get_sentence_length(self, texts):
         if isinstance(texts, list):
@@ -187,8 +189,7 @@ class FeatureProcessor():
         }
 
     def get_feat_file(self, file_name):
-        os.makedirs("features", exist_ok=True)
-        file_path = os.path.join("features", f"{file_name}.json")
+        file_path = os.path.join(self.save_loc, f"{file_name}.json")
         if os.path.exists(file_path):
             with open(file_path, "r") as f:
                 return json.load(f)
@@ -196,7 +197,7 @@ class FeatureProcessor():
             return dict()
 
     def save_feat_file(self, file_name, obj):
-        file_path = os.path.join("features", f"{file_name}.json")
+        file_path = os.path.join(self.save_loc, f"{file_name}.json")
         with open(file_path, "w") as f:
             json.dump(obj, f)
 

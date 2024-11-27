@@ -7,47 +7,39 @@ import copy
 import torch 
 
 from models import LLM
-from utils import get_args, get_k, parse_dataset, oai_get_or_create_file
 from prompts import prepare_res_prompt
 from feature_processor import FeatureProcessor
 from retriever import Retriever
 
-args = get_args()
-dataset = parse_dataset(args.dataset)
+from utils.argument_parser import parse_args
+from utils.file_utils import oai_get_or_create_file
+from utils.misc import get_model_list
 
+args, dataset, final_feature_list, k = parse_args()
 MAX_NEW_TOKENS = 64 if dataset.name == "lamp" else 128
-pred_path = "preds"
-
+pred_path = os.path.join("files", "preds")
 os.makedirs(pred_path, exist_ok=True)
+
 if dataset.name == "lamp":
     ids = dataset.get_ids()    
 
-LLMs = ["MINISTRAL-8B-INSTRUCT", "LLAMA-3.2-3B", "GEMMA-2-2B", "LLAMA-3.1-8B", "GEMMA-2-9B", "GEMMA-2-27B"]
+LLMs = get_model_list()
 # LLMs = ["GPT-4o-mini"]
 
 queries, retr_texts, retr_gts = dataset.get_retr_data() 
-
-if args.top_k == -1:
-    k = get_k(retr_texts if dataset.name == "lamp" else retr_gts)
-else:
-    k = args.top_k
-
 retriever = Retriever(dataset, args.retriever)
-final_feature_list = []
 all_context = retriever.get_context(queries, retr_texts, retr_gts, k) 
 
 if args.features:
     feature_processor = FeatureProcessor()
     all_features = feature_processor.get_all_features(dataset.tag, args.features, retr_texts, retr_gts)
     prepared_features = feature_processor.prepare_features(all_features, args.features)
-    final_feature_list = args.features
 else:
     features = None
 
 if args.counter_examples:
     ce_k = 3 if k == 50 else 1
     all_ce_examples = retriever.contrastive_retrieval(queries, retr_texts, retr_gts, args.counter_examples, ce_k)
-    final_feature_list.append(f"CE({args.counter_examples})")
 
 print(f"Running experiments for {dataset.tag} with Features: {final_feature_list}, Retriever: {args.retriever}, Repetition Step: {args.repetition_step}, and K: {k}")
 sys.stdout.flush()
@@ -55,10 +47,10 @@ sys.stdout.flush()
 for model_name in LLMs:
 
     exp_name = f"{dataset.tag}_{model_name}_{final_feature_list}_{args.retriever}_RS({args.repetition_step})_K({k}))"
-    pred_out_path = f"{pred_path}/{exp_name}.json"
+    out_path = os.path.join(pred_path, f"{exp_name}.json")
 
-    if os.path.exists(pred_out_path):
-        with open(pred_out_path, "rb") as f:
+    if os.path.exists(out_path):
+        with open(out_path, "rb") as f:
              all_res = json.load(f)["golds"]
     else:
         all_res = []
@@ -106,7 +98,7 @@ for model_name in LLMs:
 
         if llm.family == "GPT" and args.openai_batch:
 
-            with open(os.path.join("preds", f"{exp_name}.jsonl"), "a+") as file:
+            with open(os.path.join(pred_path, f"{exp_name}.jsonl"), "a+") as file:
                         json_line = json.dumps({"custom_id": str(id), "method": "POST", "url": "/v1/chat/completions", 
                                                 "body": {"model": llm.repo_id, 
                                                 "messages": prompt, "max_tokens": MAX_NEW_TOKENS}})
@@ -125,7 +117,7 @@ for model_name in LLMs:
 
             if (cont_idx+1)%500==0 or (cont_idx+1)==len(queries):
                 print(cont_idx)
-                with open(pred_out_path, "w") as f:
+                with open(out_path, "w") as f:
                     task = f"LaMP_{dataset.num}" if dataset.name == "lamp" else dataset.tag          
                     json.dump({
                         "task": task,
@@ -138,7 +130,7 @@ for model_name in LLMs:
     if llm.family == "GPT" and args.openai_batch:
 
         print("Created batch job for the experiment!")
-        batch_input_file_id = oai_get_or_create_file(llm.model, f"{exp_name}.jsonl")
+        batch_input_file_id = oai_get_or_create_file(llm.model, os.path.join(pred_path, f"{exp_name}.jsonl"))
 
         llm.model.batches.create(
             input_file_id=batch_input_file_id,

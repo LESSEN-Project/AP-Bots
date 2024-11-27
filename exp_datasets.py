@@ -37,7 +37,8 @@ class LampDataset(Dataset):
         self.split = split
         self.data_split = data_split
         self.tag = f"lamp_{self.num}_{self.data_split}_{self.split}"
-        self.dataset_dir = dataset_dir
+        self.dataset_dir = os.path.join("files", dataset_dir)
+        os.makedirs(self.dataset_dir, exist_ok=True)
         self.dataset = None
 
     def get_dataset(self):
@@ -151,7 +152,8 @@ class AmazonDataset(Dataset):
         self.year = year
         self.dataset = None
         self.tag = f"amazon_{self.category}_{self.year}"
-        self.dataset_dir = dataset_dir
+        self.dataset_dir = os.path.join("files", dataset_dir)
+        os.makedirs(self.dataset_dir, exist_ok=True)
         self.min_user_samples = 20
 
     def get_dataset(self):
@@ -309,12 +311,12 @@ class AmazonDataset(Dataset):
         for l in g:
             yield json.loads(l)
 
-    def get_amazon_dfs(self, dataset_dir="datasets"):
-        self.download_amazon_datasets(dataset_dir)
+    def get_amazon_dfs(self):
+        self.download_amazon_datasets(self.dataset_dir)
         extension = "jsonl.gz" if self.year == 2023 else "json.gz"
         paths = [
-            os.path.join(dataset_dir, f"amazon_{self.category}_{self.year}.{extension}"),
-            os.path.join(dataset_dir, f"amazon_{self.category}_{self.year}_meta.{extension}")
+            os.path.join(self.dataset_dir, f"amazon_{self.category}_{self.year}.{extension}"),
+            os.path.join(self.dataset_dir, f"amazon_{self.category}_{self.year}_meta.{extension}")
         ]
         dfs = []
         for path in paths: 
