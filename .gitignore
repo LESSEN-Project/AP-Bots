@@ -1,0 +1,16 @@
+# Dataset and feature files
+files/datasets/
+files/features/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Slurm files
+*.slurm
+
+# Error and output files
+*.err
+*.out

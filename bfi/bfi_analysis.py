@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+import copy
 
 import numpy as np
 from openai import OpenAI
@@ -32,11 +33,11 @@ for model_name in all_models:
     if model_name == "UP":
         exp_name = f"{dataset.tag}_{model_name}"
     else:
-        exp_name = f"{dataset.tag}_{model_name}_{final_feature_list}_{args.retriever}_RS({args.repetition_step})_K({k}))"
+        exp_name = f"{dataset.tag}_{model_name}_{final_feature_list}_{args.retriever}_RS({args.repetition_step})_K({k})"
 
     print(exp_name)
     pred_out_path = os.path.join(pred_path, f"{exp_name}.json")
-    bfi_out_path = os.path.join(bfi_path, f"{exp_name}_BFI.json")
+    bfi_out_path = os.path.join(bfi_path, f"{exp_name}_BFI_{bfi_model}.json")
 
     if os.path.exists(bfi_out_path):
         print("BFI analysis results already exist for this experiment!")
@@ -114,7 +115,7 @@ for model_name in all_models:
         else:
             bfi_results = []
         
-        start_index = len(bfi_results)
+        start_index = copy.copy(len(bfi_results))
 
         for _ in range(len(all_prompts[start_index:])):
 
@@ -122,7 +123,7 @@ for model_name in all_models:
             bfi_results.append(response)
             
             if (start_index+1) % 500 == 0:
-                print(f"Step: {start_index}")  
+                print(f"Step: {start_index+1}")  
                 with open(bfi_out_path, "w") as f:
                     json.dump(bfi_results, f)
 
