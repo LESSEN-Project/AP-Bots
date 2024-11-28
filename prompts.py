@@ -4,7 +4,7 @@ def prepare_res_prompt(dataset, query, llm, examples, features=None, counter_exa
         init_prompt = get_lamp_prompts(dataset.num, repetition_step)
         
     elif dataset.name == "amazon":
-        init_prompt = amazon_prompt()
+        init_prompt = amazon_prompt(repetition_step)
     
     feat_values = ""
     if features:

@@ -13,7 +13,8 @@ from utils.file_utils import oai_get_or_create_file
 from utils.misc import get_model_list
 
 pred_path = os.path.join("files", "preds")
-bfi_path = os.path.join("bfi", "files")
+bfi_path = os.path.join("bfi", "files", "bfi_analysis")
+os.makedirs(bfi_path, exist_ok=True)
 args, dataset, final_feature_list, k = parse_args()
 MAX_NEW_TOKENS = 512
 TEMPERATURE = 0.01
@@ -70,7 +71,7 @@ for model_name in all_models:
 
             max_k = 10 if len(reviews) > 10 else len(reviews)
             reviews = np.random.choice(reviews, size=max_k, replace=False)
-            context = llm.prepare_context(get_BFI_prompts(dataset.name, text=""), reviews)
+            context = llm.prepare_context(get_BFI_prompts(dataset, text=""), reviews)
 
         else:
             if dataset.name == "amazon":
@@ -81,7 +82,7 @@ for model_name in all_models:
             else:
                 context = reviews   
         
-        all_prompts.append(get_BFI_prompts(dataset.name, context))
+        all_prompts.append(get_BFI_prompts(dataset, context))
 
     if llm.family == "GPT" and args.openai_batch:
 
@@ -120,7 +121,7 @@ for model_name in all_models:
             response = llm.prompt_chatbot(all_prompts[start_index], gen_params={"max_tokens": MAX_NEW_TOKENS, "temperature": TEMPERATURE})
             bfi_results.append(response)
             
-            if start_index + 1 % 500 == 0:
+            if (start_index+1) % 500 == 0:
                 print(f"Step: {start_index}")  
                 with open(bfi_out_path, "w") as f:
                     json.dump(bfi_results, f)

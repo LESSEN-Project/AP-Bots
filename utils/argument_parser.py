@@ -64,4 +64,4 @@ def get_k(retr_texts):
     if mean < 50:
         return 50
     else:
-        return 7
+        return 10
