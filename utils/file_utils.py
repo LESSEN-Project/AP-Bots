@@ -1,6 +1,7 @@
 import os
 import random
 import json
+import re
 
 def list_files_in_directory(root_dir):
 
@@ -21,6 +22,19 @@ def shuffle_lists(list1, list2):
 
    return list1_shuffled, list2_shuffled
 
+def parse_filename(file, dataset_tag):
+
+    params = file[len(dataset_tag)+1:-5].split("_")
+
+    k = re.findall(r'\((.*?)\)', params[-1])[0]
+    retriever = params[2]
+    features = params[1]
+    if features != "None":
+        features = ":".join(eval(features))
+    model = params[0]
+    rs = re.findall(r'\((.*?)\)', params[-2])[0]
+
+    return {"model": model, "retriever": retriever, "features": features, "RS": rs, "k": k}
 
 def oai_get_or_create_file(client, filename):
 

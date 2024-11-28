@@ -46,7 +46,7 @@ sys.stdout.flush()
 
 for model_name in LLMs:
 
-    exp_name = f"{dataset.tag}_{model_name}_{final_feature_list}_{args.retriever}_RS({args.repetition_step})_K({k}))"
+    exp_name = f"{dataset.tag}_{model_name}_{final_feature_list}_{args.retriever}_RS({args.repetition_step})_K({k})"
     out_path = os.path.join(pred_path, f"{exp_name}.json")
 
     if os.path.exists(out_path):
@@ -116,7 +116,7 @@ for model_name in LLMs:
             })
 
             if (cont_idx+1)%500==0 or (cont_idx+1)==len(queries):
-                print(cont_idx)
+                print(cont_idx+1)
                 with open(out_path, "w") as f:
                     task = f"LaMP_{dataset.num}" if dataset.name == "lamp" else dataset.tag          
                     json.dump({
