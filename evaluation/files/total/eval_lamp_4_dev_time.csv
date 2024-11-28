@@ -1,0 +1,11 @@
+model,features,retriever,k,CoT,SC,rouge1,rouge2,rougeL,rougeLsum,bleu
+GEMMA-2-9B,WF,contriever,50,False,1,0.1969,0.0706,0.1829,0.1827,0.0384
+GEMMA-2-9B,CE(3),contriever,50,False,1,0.197,0.0694,0.183,0.1826,0.0381
+GEMMA-2-27B,DPF:CE(3),contriever,50,False,1,0.2227,0.0828,0.2049,0.2046,0.0472
+GEMMA-2-27B,WF,contriever,50,False,1,0.217,0.0791,0.1987,0.1984,0.0447
+GEMMA-2-27B,WF:DPF:CE(3),contriever,50,False,1,0.2259,0.086,0.2078,0.2076,0.0496
+GEMMA-2-9B,,contriever,50,False,1,0.1973,0.0699,0.1821,0.1816,0.0378
+GEMMA-2-9B,DPF:CE(3),contriever,50,False,1,0.1962,0.0706,0.1832,0.1829,0.0383
+GEMMA-2-27B,CE(3),contriever,50,False,1,0.2236,0.0826,0.2051,0.2048,0.0467
+GEMMA-2-9B,WF:DPF:CE(3),contriever,50,False,1,0.2037,0.0742,0.19,0.1899,0.042
+GEMMA-2-27B,,contriever,50,False,1,0.214,0.0746,0.1949,0.1947,0.0399
