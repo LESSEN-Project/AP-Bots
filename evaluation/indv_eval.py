@@ -14,8 +14,8 @@ out_dir = os.path.join("evaluation", "files", "indv")
 os.makedirs(out_dir, exist_ok=True)
 file_out_name = os.path.join(out_dir, f"eval_{dataset.tag}.json")
 
-client = OpenAI()
-oai_get_batch_res(client)
+# client = OpenAI()
+# oai_get_batch_res(client)
 
 out_gts = dataset.get_gts()
 all_rouge_scores = {}

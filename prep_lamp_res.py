@@ -1,11 +1,12 @@
 import os
 import json
 
-for file in os.listdir("preds"):
+pred_dir = os.path.join("files", "preds")
+for file in os.listdir(pred_dir):
 
     if file.startswith("lamp") and file.split("_")[2] == "test":
         
-        with open(os.path.join("preds", file), "r") as f:
+        with open(os.path.join(pred_dir, file), "r") as f:
             res = json.load(f)
         
         keys_to_keep = ["id", "output"]
