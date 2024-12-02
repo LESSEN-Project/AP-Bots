@@ -24,8 +24,8 @@ def load_and_filter_data(file_path):
         model_family = model.split('-')[0]
         
         if (params['features'] == "" and 
-            params['RS'] == "1" and 
-            params['k'] in ['0', '10', '50'] and
+            params['RS'] == 1 and 
+            params['k'] in [0, 10, 50] and
             model_family in included_models and
             model in included_models[model_family]):
             filtered_data[exp_name] = exp_data
@@ -34,7 +34,7 @@ def load_and_filter_data(file_path):
 
 def analyze_scores(filtered_data):
     """Analyze rouge scores for different k values and models"""
-    results = {k: {} for k in ['0', '10', '50']}
+    results = {k: {} for k in [0, 10, 50]}
     
     for exp_name, exp_data in filtered_data.items():
         k = exp_data['params']['k']
@@ -111,9 +111,9 @@ def analyze_score_transitions(results, output_dir):
     transition_stats = {}
     detailed_transitions = {}
     
-    for model in results['0'].keys():
-        scores_k0 = np.array(results['0'][model])
-        scores_k50 = np.array(results['50'][model])
+    for model in results[0].keys():
+        scores_k0 = np.array(results[0][model])
+        scores_k50 = np.array(results[50][model])
         
         # Basic statistics
         total_samples = len(scores_k0)
@@ -199,10 +199,8 @@ def analyze_score_transitions(results, output_dir):
         print(f"Saved transition details to: {csv_filename}")
 
 def plot_comparisons(results, output_dir):
-    """Create plots comparing all models"""
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    
-    # Prepare data for plotting
+    """Create plots comparing all models"""    
+
     plot_data = []
     for k in sorted(results.keys()):
         for model in sorted(results[k].keys()):
@@ -211,7 +209,7 @@ def plot_comparisons(results, output_dir):
             plot_data.extend([(score, k, display_name) for score in scores])
     
     df = pd.DataFrame(plot_data, columns=['score', 'k', 'model'])
-    df['k'] = pd.Categorical(df['k'], categories=['0', '10', '50'], ordered=True)
+    df['k'] = pd.Categorical(df['k'], categories=[0, 10, 50], ordered=True)
     
     # Set style
     sns.set_style("whitegrid")
@@ -219,7 +217,7 @@ def plot_comparisons(results, output_dir):
     # Box plot for all models
     plt.figure(figsize=(12, 6))
     sns.boxplot(data=df, x='model', y='score', hue='k', 
-                hue_order=['0', '10', '50'],
+                hue_order=[0, 10, 50],
                 palette='Set2')
     plt.title('Rouge-L Score Distribution by Model and k')
     plt.xticks(rotation=0)
@@ -233,7 +231,7 @@ def plot_comparisons(results, output_dir):
     # Violin plot
     plt.figure(figsize=(12, 6))
     sns.violinplot(data=df, x='model', y='score', hue='k',
-                  hue_order=['0', '10', '50'],
+                  hue_order=[0, 10, 50],
                   palette='Set2')
     plt.title('Rouge-L Score Distribution (Violin Plot)')
     plt.xticks(rotation=0)
@@ -251,7 +249,7 @@ def plot_comparisons(results, output_dir):
     ).reset_index()
     
     sns.barplot(data=zero_scores, x='model', y='score', hue='k',
-                hue_order=['0', '10', '50'],
+                hue_order=[0, 10, 50],
                 palette='Set2')
     plt.title('Percentage of Zero Scores by Model and k')
     plt.xticks(rotation=0)
@@ -282,7 +280,7 @@ def plot_comparisons(results, output_dir):
     dist_data['percentage'] = dist_data.groupby(['model', 'k'])['count'].transform(lambda x: x / x.sum() * 100)
     
     # Create distribution plot for each k value
-    for k_val in ['0', '10', '50']:
+    for k_val in [0, 10, 50]:
         plt.figure(figsize=(14, 7))
         k_data = dist_data[dist_data['k'] == k_val]
         
@@ -305,14 +303,14 @@ def plot_comparisons(results, output_dir):
 def main():
     """Main function to run the analysis"""
     # Create output directories if they don't exist
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    visuals_dir = os.path.join(base_dir, 'files', 'visuals')
-    csvs_dir = os.path.join(base_dir, 'files', 'csvs')
+    visuals_dir = os.path.join('bfi', 'files', 'visuals')
+    csvs_dir = os.path.join('bfi', 'files', 'csv')
+
     os.makedirs(visuals_dir, exist_ok=True)
     os.makedirs(csvs_dir, exist_ok=True)
     
     # Load and filter data
-    input_file = '/home/myazan1/ContrastiveExamples/evaluation/files/indv/eval_amazon_Grocery_and_Gourmet_Food_2018.json'
+    input_file = 'evaluation/files/indv/eval_amazon_Grocery_and_Gourmet_Food_2018.json'
     filtered_data = load_and_filter_data(input_file)
     
     # Analyze scores
