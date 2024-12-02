@@ -14,7 +14,7 @@ def load_and_filter_data(file_path):
     # Define models to include
     included_models = {
         'LLAMA': ['LLAMA-3.2-3B', 'LLAMA-3.1-8B'],
-        'GEMMA': ['GEMMA-2-9B', 'GEMMA-2-27B']
+        'GEMMA': ['GEMMA-2-9B', 'GEMMA-2-27B'],
     }
     
     filtered_data = {}
@@ -300,25 +300,132 @@ def plot_comparisons(results, output_dir):
         plt.savefig(f'{output_dir}/score_distribution_k{k_val}.png', bbox_inches='tight', dpi=300)
         plt.close()
 
+def create_model_comparison_plot(results, output_dir):
+    """Create a detailed comparison of score distributions for specific models."""
+    # Print available models for debugging
+    print("\nAvailable models in results:")
+    for k in sorted(results.keys()):
+        print(f"k={k}:")
+        print(sorted(results[k].keys()))
+    
+    # Define models to compare
+    models_to_compare = {
+        'GEMMA-2-9B': 'GEMMA-9B',
+        'GEMMA-2-27B': 'GEMMA-27B',
+        'LLAMA-3.2-3B': 'LLAMA-3B',
+        'LLAMA-3.1-8B': 'LLAMA-8B'
+    }
+    
+    # Set up the figure with two rows and two columns
+    fig = plt.figure(figsize=(15, 12))
+    
+    # Define score ranges for distribution plots
+    bins = [0, 0.000001, 0.05, 0.10, 0.15, 0.20, 0.30, 1.00]
+    bin_labels = ['0', '0.01-0.05', '0.05-0.10', '0.10-0.15', '0.15-0.20', '0.20-0.30', '0.30-1.00']
+    
+    # Colors for k=0 and k=10
+    colors = ['#1f77b4', '#ff7f0e']  # Blue and Orange
+    
+    # Process each model
+    for idx, (model_key, display_name) in enumerate(models_to_compare.items()):
+        # Get scores for k=0 and k=10
+        scores_k0 = np.array(results[0].get(model_key, []))
+        scores_k10 = np.array(results[10].get(model_key, []))
+        
+        # Create subplot
+        ax = fig.add_subplot(2, 2, idx + 1)
+        
+        # Calculate histograms
+        hist_k0, _ = np.histogram(scores_k0, bins=bins)
+        hist_k10, _ = np.histogram(scores_k10, bins=bins)
+        
+        # Convert to percentages
+        hist_k0 = hist_k0 / len(scores_k0) * 100
+        hist_k10 = hist_k10 / len(scores_k10) * 100
+        
+        # Plot bars
+        x = np.arange(len(bin_labels))
+        width = 0.35
+        ax.bar(x - width/2, hist_k0, width, label='k=0', color=colors[0])
+        ax.bar(x + width/2, hist_k10, width, label='k=10', color=colors[1])
+        
+        # Customize plot
+        ax.set_title(f'{display_name}\nScore Distribution', pad=10)
+        ax.set_xlabel('Score Range')
+        ax.set_ylabel('Percentage of Samples')
+        ax.set_xticks(x)
+        ax.set_xticklabels(bin_labels, rotation=45)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        
+        # Set y-axis limit to be consistent across all plots
+        ax.set_ylim(0, 100)
+    
+    # Add overall title and adjust layout
+    plt.suptitle('Model Comparison: Score Distributions', fontsize=16, y=1.02)
+    plt.tight_layout()
+    
+    # Save the plot
+    plt.savefig(os.path.join(output_dir, 'model_comparison_detailed.png'), 
+                bbox_inches='tight', dpi=300)
+    plt.close()
+
 def main():
     """Main function to run the analysis"""
     # Create output directories if they don't exist
-    visuals_dir = os.path.join('bfi', 'files', 'visuals')
-    csvs_dir = os.path.join('bfi', 'files', 'csv')
-
-    os.makedirs(visuals_dir, exist_ok=True)
-    os.makedirs(csvs_dir, exist_ok=True)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Ensure absolute paths
+    visuals_dir = os.path.join(base_dir, 'files', 'visuals')
+    csvs_dir = os.path.join(base_dir, 'files', 'csv')
+    
+    # Create directories with verbose logging
+    for dir_path in [visuals_dir, csvs_dir]:
+        try:
+            os.makedirs(dir_path, exist_ok=True)
+            print(f"Created directory: {dir_path}")
+        except Exception as e:
+            print(f"Error creating directory {dir_path}: {e}")
+    
+    # Verify directory creation and permissions
+    for dir_path in [visuals_dir, csvs_dir]:
+        if not os.path.exists(dir_path):
+            raise RuntimeError(f"Failed to create directory: {dir_path}")
+        if not os.access(dir_path, os.W_OK):
+            raise RuntimeError(f"No write permissions for directory: {dir_path}")
+    
+    # Construct input file path with absolute path
+    input_file = os.path.join(os.path.dirname(base_dir), 'evaluation', 'files', 'indv', 'eval_amazon_Grocery_and_Gourmet_Food_2018.json')
+    
+    # Verify input file exists
+    if not os.path.exists(input_file):
+        raise FileNotFoundError(f"Input file not found: {input_file}")
     
     # Load and filter data
-    input_file = 'evaluation/files/indv/eval_amazon_Grocery_and_Gourmet_Food_2018.json'
     filtered_data = load_and_filter_data(input_file)
+    print(f"Loaded {len(filtered_data)} filtered experiments")
     
     # Analyze scores
     results = analyze_scores(filtered_data)
     
-    # Create visualizations
-    analyze_score_transitions(results, csvs_dir)
-    plot_comparisons(results, visuals_dir)
+    # Create visualizations with error handling
+    try:
+        analyze_score_transitions(results, csvs_dir)
+        print(f"Score transitions analysis saved to {csvs_dir}")
+    except Exception as e:
+        print(f"Error in score transitions analysis: {e}")
+    
+    try:
+        plot_comparisons(results, visuals_dir)
+        print(f"Plots saved to {visuals_dir}")
+    except Exception as e:
+        print(f"Error creating plots: {e}")
+    
+    try:
+        create_model_comparison_plot(results, visuals_dir)
+        print(f"Model comparison plot saved to {visuals_dir}")
+    except Exception as e:
+        print(f"Error creating model comparison plot: {e}")
 
 if __name__ == "__main__":
     main()
