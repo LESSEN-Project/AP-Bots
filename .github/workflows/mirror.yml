@@ -27,7 +27,7 @@ jobs:
 
       - name: Push to mirror repository
         run: |
-          git remote add mirror git@github.com:LESSEN-Project/ContrastiveExamples.git
+          git remote add mirror git@github.com:LESSEN-Project/AP-Bots.git
           git push --force --all mirror
           git push --force --tags mirror
 
