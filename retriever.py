@@ -147,3 +147,28 @@ class Retriever:
             all_examples.append(examples)
 
         return all_examples
+
+    def calculate_one_to_one_distances(self, texts1: List[str], texts2: List[str]) -> List[float]:
+        """Calculate semantic distances between corresponding pairs of texts.
+        
+        Args:
+            texts1: First list of texts
+            texts2: Second list of texts (must be same length as texts1)
+            
+        Returns:
+            List of distances (1 - cosine similarity) between corresponding texts
+        """
+        if len(texts1) != len(texts2):
+            raise ValueError(f"Lists must have same length. Got {len(texts1)} and {len(texts2)}")
+            
+        # Encode all texts
+        embeds1 = self._encode(texts1)
+        embeds2 = self._encode(texts2)
+        
+        # Calculate cosine similarity for each pair
+        distances = []
+        for e1, e2 in zip(embeds1, embeds2):
+            sim = np.dot(e1, e2) / (np.linalg.norm(e1) * np.linalg.norm(e2))
+            distances.append(1 - sim)
+            
+        return distances
