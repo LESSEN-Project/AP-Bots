@@ -23,7 +23,7 @@ TEMPERATURE = 0.01
 bfi_model = "GEMMA-2-27B"
 # bfi_model = "GPT-4o-mini"
 llm = LLM(model_name=bfi_model)
-all_models = ["UP"] + get_model_list()
+all_models = get_model_list() + ["UP"]
 
 _, retr_texts, retr_gts = dataset.get_retr_data() 
 print(f"Number of users: {len(retr_texts)}")
@@ -40,13 +40,20 @@ for model_name in all_models:
     bfi_out_path = os.path.join(bfi_path, f"{exp_name}_BFI_{bfi_model}.json")
 
     if os.path.exists(bfi_out_path):
-        print("BFI analysis results already exist for this experiment!")
-        continue
-
-    if model_name != "UP":
-        if not os.path.exists(pred_out_path):
-            print("Predictions for this experiment doesn't exist!")
+        with open(bfi_out_path, "r") as f:
+            bfi_results = json.load(f)
+        
+        if len(bfi_results) == len(retr_texts):
+            print("BFI results already exists for the experiment!")
             continue
+        else:
+            print(f"Continuing from index {len(bfi_results)}!")
+
+    else:
+        bfi_results = []
+
+
+    if os.path.exists(pred_out_path):
 
         with open(pred_out_path, "r") as f:
             preds = json.load(f)["golds"]
@@ -55,10 +62,16 @@ for model_name in all_models:
         if len(preds) != len(retr_texts):
             print("Predictions for this experiment is not finished yet!")
             continue
+
+    elif model_name == "UP":
+
+        preds = retr_texts if dataset.name == "lamp" else retr_gts
     
     else:
-        preds = retr_texts if dataset.name == "lamp" else retr_gts
-
+        
+        print("Predictions for this experiment doesn't exist!")
+        continue
+        
     all_prompts = []
     for i in range(len(preds)):
 
@@ -107,13 +120,6 @@ for model_name in all_models:
         )
 
     else:
-
-        if os.path.exists(bfi_out_path):
-            with open(bfi_out_path, "w") as f:
-                bfi_results = json.load(f)
-                print(f"Continuing from index {len(bfi_results)}!")
-        else:
-            bfi_results = []
         
         start_index = copy.copy(len(bfi_results))
 
