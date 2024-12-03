@@ -2,6 +2,7 @@ import json
 import os
 import argparse
 import numpy as np
+import pandas as pd
 
 from typing import Dict, List, Any, Tuple
 import matplotlib.pyplot as plt
@@ -304,80 +305,194 @@ def analyze_rouge_improvement(k0_distances: List[float], k10_distances: List[flo
     }
 
 
+def analyze_initial_distance_impact(k0_distances: List[float], k10_distances: List[float], 
+                                 k0_rouge: List[float], k10_rouge: List[float], model: str):
+    """Analyze how initial distances affect improvements when k increases."""
+    
+    # Convert to numpy arrays
+    k0_distances = np.array(k0_distances)
+    k10_distances = np.array(k10_distances)
+    k0_rouge = np.array(k0_rouge)
+    k10_rouge = np.array(k10_rouge)
+    
+    # Calculate changes
+    distance_changes = k10_distances - k0_distances
+    rouge_changes = k10_rouge - k0_rouge
+    
+    # Define high distance threshold as 75th percentile of initial distances
+    high_dist_threshold = np.percentile(k0_distances, 75)
+    
+    # Split samples into high and low initial distance groups
+    high_dist_mask = k0_distances >= high_dist_threshold
+    low_dist_mask = k0_distances < high_dist_threshold
+    
+    # Prepare data for both CSV and printing
+    high_dist_stats = {
+        'model': model,
+        'group': 'high_distance',
+        'threshold': high_dist_threshold,
+        'num_samples': np.sum(high_dist_mask),
+        'mean_initial_distance': np.mean(k0_distances[high_dist_mask]),
+        'mean_distance_change': np.mean(distance_changes[high_dist_mask]),
+        'mean_rouge_change': np.mean(rouge_changes[high_dist_mask]),
+        'num_rouge_improved': np.sum(rouge_changes[high_dist_mask] > 0),
+        'num_rouge_worsened': np.sum(rouge_changes[high_dist_mask] < 0),
+        'pct_rouge_improved': np.mean(rouge_changes[high_dist_mask] > 0) * 100,
+        'pct_rouge_worsened': np.mean(rouge_changes[high_dist_mask] < 0) * 100
+    }
+    
+    low_dist_stats = {
+        'model': model,
+        'group': 'low_distance',
+        'threshold': high_dist_threshold,
+        'num_samples': np.sum(low_dist_mask),
+        'mean_initial_distance': np.mean(k0_distances[low_dist_mask]),
+        'mean_distance_change': np.mean(distance_changes[low_dist_mask]),
+        'mean_rouge_change': np.mean(rouge_changes[low_dist_mask]),
+        'num_rouge_improved': np.sum(rouge_changes[low_dist_mask] > 0),
+        'num_rouge_worsened': np.sum(rouge_changes[low_dist_mask] < 0),
+        'pct_rouge_improved': np.mean(rouge_changes[low_dist_mask] > 0) * 100,
+        'pct_rouge_worsened': np.mean(rouge_changes[low_dist_mask] < 0) * 100
+    }
+    
+    # Print analysis
+    print(f"\nInitial Distance Impact Analysis for {model}")
+    print(f"High distance threshold (75th percentile): {high_dist_threshold:.4f}")
+    
+    print("\nHigh Initial Distance Samples:")
+    print(f"Number of samples: {high_dist_stats['num_samples']}")
+    print(f"Mean initial distance: {high_dist_stats['mean_initial_distance']:.4f}")
+    print(f"Mean distance change: {high_dist_stats['mean_distance_change']:.4f}")
+    print(f"Mean ROUGE change: {high_dist_stats['mean_rouge_change']:.4f}")
+    print(f"Samples with improved ROUGE: {high_dist_stats['num_rouge_improved']} ({high_dist_stats['pct_rouge_improved']:.1f}%)")
+    print(f"Samples with worse ROUGE: {high_dist_stats['num_rouge_worsened']} ({high_dist_stats['pct_rouge_worsened']:.1f}%)")
+    
+    print("\nLow Initial Distance Samples:")
+    print(f"Number of samples: {low_dist_stats['num_samples']}")
+    print(f"Mean initial distance: {low_dist_stats['mean_initial_distance']:.4f}")
+    print(f"Mean distance change: {low_dist_stats['mean_distance_change']:.4f}")
+    print(f"Mean ROUGE change: {low_dist_stats['mean_rouge_change']:.4f}")
+    print(f"Samples with improved ROUGE: {low_dist_stats['num_rouge_improved']} ({low_dist_stats['pct_rouge_improved']:.1f}%)")
+    print(f"Samples with worse ROUGE: {low_dist_stats['num_rouge_worsened']} ({low_dist_stats['pct_rouge_worsened']:.1f}%)")
+    
+    # Create scatter plot of initial distance vs changes
+    plt.figure(figsize=(12, 5))
+    
+    # Distance changes subplot
+    plt.subplot(1, 2, 1)
+    plt.scatter(k0_distances, distance_changes, alpha=0.5)
+    plt.axvline(high_dist_threshold, color='r', linestyle='--', label='75th percentile')
+    plt.axhline(0, color='k', linestyle='-', alpha=0.2)
+    plt.xlabel('Initial Distance (k=0)')
+    plt.ylabel('Change in Distance (k10 - k0)')
+    plt.title('Initial Distance vs Distance Change')
+    plt.legend()
+    
+    # ROUGE changes subplot
+    plt.subplot(1, 2, 2)
+    plt.scatter(k0_distances, rouge_changes, alpha=0.5)
+    plt.axvline(high_dist_threshold, color='r', linestyle='--', label='75th percentile')
+    plt.axhline(0, color='k', linestyle='-', alpha=0.2)
+    plt.xlabel('Initial Distance (k=0)')
+    plt.ylabel('Change in ROUGE-L (k10 - k0)')
+    plt.title('Initial Distance vs ROUGE Change')
+    plt.legend()
+    
+    plt.tight_layout()
+    plot_path = os.path.join("personality_analysis", "files", "visuals", "initial_distance_impact", f'initial_distance_impact_{model}.png')
+    os.makedirs(os.path.dirname(plot_path), exist_ok=True)
+    plt.savefig(plot_path)
+    plt.close()
+    
+    return {
+        'high_dist_stats': high_dist_stats,
+        'low_dist_stats': low_dist_stats
+    }
+
 def main():
     # Parse arguments
     args = get_args()
     dataset = parse_dataset(args.dataset)
-
+    
     # Load evaluation results
     eval_file = os.path.join("evaluation", "files", "indv", f"eval_{args.dataset}.json")
     eval_results = load_eval_results(eval_file)
-
+    
     # Load predictions
     pred_dir = os.path.join("files", "preds")
     predictions = load_predictions(pred_dir, list(eval_results.keys()))
-
+    
     # Load ground truth
     ground_truth = dataset.get_gts()
     print(f"Loaded {len(ground_truth)} ground truth samples")
-
+    
     # Initialize retriever
     retriever = Retriever(dataset)
     
-    # Compare k settings for each model
+    # Initialize results dictionary and list for CSV data
     comparison_results = {}
-
+    csv_data = []
+    
     for model, k_preds in predictions.items():
         print(f"\nAnalyzing model: {model}")
-
+        
         # Get predictions for k=0 and k=10
         k0_preds = k_preds[0]
         k10_preds = k_preds[10]
-
+        
         # Get ROUGE-L scores for k=0 and k=10
         k0_exp_key = [k for k in eval_results.keys() if get_model_and_k(k)[0] == model and get_model_and_k(k)[1] == 0][0]
         k10_exp_key = [k for k in eval_results.keys() if get_model_and_k(k)[0] == model and get_model_and_k(k)[1] == 10][0]
-
+        
         k0_rouge = eval_results[k0_exp_key]['rougeL']
         k10_rouge = eval_results[k10_exp_key]['rougeL']
-
+        
         # Calculate distances
         k0_distances = retriever.calculate_one_to_one_distances(k0_preds, ground_truth)
         k10_distances = retriever.calculate_one_to_one_distances(k10_preds, ground_truth)
-
+        
         # Basic distance analysis
         results = compare_k_settings(model, k0_distances, k10_distances)
-
-        # Add ROUGE correlation analysis
-        results['rouge_correlation'] = {
-            'k0': analyze_rouge_correlation(k0_distances, k0_rouge, model, k=0),
-            'k10': analyze_rouge_correlation(k10_distances, k10_rouge, model, k=10)
-        }
-
-        # Analyze how improvements in distance correlate with improvements in ROUGE
-        results['rouge_improvement'] = analyze_rouge_improvement(
+        
+        # Analyze impact of initial distances
+        impact_results = analyze_initial_distance_impact(
             k0_distances, k10_distances, k0_rouge, k10_rouge, model
         )
-
+        
+        # Add results to CSV data
+        csv_data.append(impact_results['high_dist_stats'])
+        csv_data.append(impact_results['low_dist_stats'])
+        
+        results['initial_distance_impact'] = impact_results
         comparison_results[model] = results
-
-    # Print summary of improvements and correlations
-    print("\nSummary of Improvements and Correlations:")
+    
+    # Save results to CSV
+    df = pd.DataFrame(csv_data)
+    csv_path = os.path.join("personality_analysis", "files", "csv", "initial_distance_impact.csv")
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+    df.to_csv(csv_path, index=False, float_format='%.4f')
+    
+    # Print summary of improvements and initial distance impact
+    print("\nSummary of Improvements and Initial Distance Impact:")
     for model, results in comparison_results.items():
         print(f"\n{model}:")
-        sample_analysis = results['sample_analysis']
-        print(f"Mean distance reduction: {results['mean_improvement']:.4f}")
-        print(f"Samples improved: {sample_analysis['improved']} ({(sample_analysis['improved']/sample_analysis['total_samples'])*100:.1f}%)")
-        print(f"Samples worsened: {sample_analysis['worsened']} ({(sample_analysis['worsened']/sample_analysis['total_samples'])*100:.1f}%)")
-        print(f"Average distance reduction when improved: {sample_analysis['avg_improvement']:.4f}")
-        print(f"Average distance increase when worsened: {sample_analysis['avg_deterioration']:.4f}")
-        print(f"Statistically significant: {results['p_value'] < 0.05}")
-
-        print("\nROUGE-L Correlations:")
-        print(f"k=0: r={results['rouge_correlation']['k0']['correlation']:.4f} (p={results['rouge_correlation']['k0']['p_value']:.4e})")
-        print(f"k=10: r={results['rouge_correlation']['k10']['correlation']:.4f} (p={results['rouge_correlation']['k10']['p_value']:.4e})")
-        print(f"Improvements correlation: r={results['rouge_improvement']['correlation']:.4f} (p={results['rouge_improvement']['p_value']:.4e})")
-
+        impact = results['initial_distance_impact']
+        
+        print("\nHigh Initial Distance Samples:")
+        high_dist = impact['high_dist_stats']
+        print(f"Count: {high_dist['num_samples']}")
+        print(f"Mean initial distance: {high_dist['mean_initial_distance']:.4f}")
+        print(f"Mean distance change: {high_dist['mean_distance_change']:.4f}")
+        print(f"Mean ROUGE change: {high_dist['mean_rouge_change']:.4f}")
+        print(f"ROUGE improved/worsened: {high_dist['num_rouge_improved']}/{high_dist['num_rouge_worsened']}")
+        
+        print("\nLow Initial Distance Samples:")
+        low_dist = impact['low_dist_stats']
+        print(f"Count: {low_dist['num_samples']}")
+        print(f"Mean initial distance: {low_dist['mean_initial_distance']:.4f}")
+        print(f"Mean distance change: {low_dist['mean_distance_change']:.4f}")
+        print(f"Mean ROUGE change: {low_dist['mean_rouge_change']:.4f}")
+        print(f"ROUGE improved/worsened: {low_dist['num_rouge_improved']}/{low_dist['num_rouge_worsened']}")
 
 if __name__ == "__main__":
     main()
