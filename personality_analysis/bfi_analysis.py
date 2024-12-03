@@ -14,7 +14,7 @@ from utils.file_utils import oai_get_or_create_file
 from utils.misc import get_model_list
 
 pred_path = os.path.join("files", "preds")
-bfi_path = os.path.join("bfi", "files", "bfi_analysis")
+bfi_path = os.path.join("personality_analysis", "files", "bfi_analysis")
 os.makedirs(bfi_path, exist_ok=True)
 args, dataset, final_feature_list, k = parse_args()
 MAX_NEW_TOKENS = 512

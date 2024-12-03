@@ -1,10 +1,13 @@
 import json
+import os
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from pathlib import Path
-import os
+
+from utils.argument_parser import get_args, parse_dataset
+
 
 def load_and_filter_data(file_path):
     """Load data and filter for specified conditions"""
@@ -309,12 +312,7 @@ def create_model_comparison_plot(results, output_dir):
         print(sorted(results[k].keys()))
     
     # Define models to compare
-    models_to_compare = {
-        'GEMMA-2-9B': 'GEMMA-9B',
-        'GEMMA-2-27B': 'GEMMA-27B',
-        'LLAMA-3.2-3B': 'LLAMA-3B',
-        'LLAMA-3.1-8B': 'LLAMA-8B'
-    }
+    models_to_compare = ['GEMMA-2-9B', 'GEMMA-2-27B', 'LLAMA-3.2-3B', 'LLAMA-3.1-8B']
     
     # Set up the figure with two rows and two columns
     fig = plt.figure(figsize=(15, 12))
@@ -327,30 +325,25 @@ def create_model_comparison_plot(results, output_dir):
     colors = ['#1f77b4', '#ff7f0e']  # Blue and Orange
     
     # Process each model
-    for idx, (model_key, display_name) in enumerate(models_to_compare.items()):
-        # Get scores for k=0 and k=10
-        scores_k0 = np.array(results[0].get(model_key, []))
-        scores_k10 = np.array(results[10].get(model_key, []))
+    for idx, model in enumerate(models_to_compare):
+
+        scores_k0 = np.array(results[0].get(model, []))
+        scores_k10 = np.array(results[10].get(model, []))
         
-        # Create subplot
         ax = fig.add_subplot(2, 2, idx + 1)
         
-        # Calculate histograms
         hist_k0, _ = np.histogram(scores_k0, bins=bins)
         hist_k10, _ = np.histogram(scores_k10, bins=bins)
         
-        # Convert to percentages
         hist_k0 = hist_k0 / len(scores_k0) * 100
         hist_k10 = hist_k10 / len(scores_k10) * 100
         
-        # Plot bars
         x = np.arange(len(bin_labels))
         width = 0.35
         ax.bar(x - width/2, hist_k0, width, label='k=0', color=colors[0])
         ax.bar(x + width/2, hist_k10, width, label='k=10', color=colors[1])
         
-        # Customize plot
-        ax.set_title(f'{display_name}\nScore Distribution', pad=10)
+        ax.set_title(f'{model}\nScore Distribution', pad=10)
         ax.set_xlabel('Score Range')
         ax.set_ylabel('Percentage of Samples')
         ax.set_xticks(x)
@@ -370,62 +363,168 @@ def create_model_comparison_plot(results, output_dir):
                 bbox_inches='tight', dpi=300)
     plt.close()
 
+def plot_score_changes(results, output_dir):
+    """
+    Create a bar plot showing the number of samples with increased/decreased ROUGE scores
+    when k is increased from 0 to 50 for each model.
+    """
+    models = list(results[0].keys())
+    increased = []
+    decreased = []
+    
+    for model in models:
+        k0_scores = np.array(results[0][model])
+        k50_scores = np.array(results[50][model])
+        
+        # Calculate differences
+        diff = k50_scores - k0_scores
+        
+        # Separate increases and decreases
+        increases = diff[diff > 0]
+        decreases = diff[diff < 0]
+        
+        increased.append(np.sum(diff > 0))
+        decreased.append(np.sum(diff < 0))
+    
+    # Prepare data for plotting
+    x = np.arange(len(models))
+    width = 0.35
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+    rects1 = ax.bar(x - width/2, increased, width, label='Increased', color='green', alpha=0.6)
+    rects2 = ax.bar(x + width/2, decreased, width, label='Decreased', color='red', alpha=0.6)
+    
+    # Customize plot
+    ax.set_ylabel('Number of Samples')
+    ax.set_title('Changes in ROUGE Scores (k=0 to k=50)')
+    ax.set_xticks(x)
+    ax.set_xticklabels([create_model_display_name(model) for model in models])
+    ax.legend()
+    
+    # Add value labels on bars
+    def autolabel(rects):
+        for rect in rects:
+            height = rect.get_height()
+            ax.annotate(f'{int(height)}',
+                       xy=(rect.get_x() + rect.get_width()/2, height),
+                       xytext=(0, 3),
+                       textcoords="offset points",
+                       ha='center', va='bottom')
+    
+    autolabel(rects1)
+    autolabel(rects2)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'rouge_score_changes.png'))
+    plt.close()
+
+def analyze_score_change_statistics(results, output_dir):
+    """
+    Analyze detailed statistics about how ROUGE scores change when k increases from 0 to 50.
+    Saves results to a CSV file and returns a DataFrame with the statistics.
+    """
+    stats_data = []
+    
+    for model in results[0].keys():
+        k0_scores = np.array(results[0][model])
+        k50_scores = np.array(results[50][model])
+        
+        # Calculate differences
+        diff = k50_scores - k0_scores
+        
+        # Separate increases and decreases
+        increases = diff[diff > 0]
+        decreases = diff[diff < 0]
+        
+        stats = {
+            'Model': model,
+            'Total_Samples': len(diff),
+            'Increased_Count': len(increases),
+            'Decreased_Count': len(decreases),
+            'No_Change_Count': np.sum(diff == 0),
+            'Mean_Increase': np.mean(increases) if len(increases) > 0 else 0,
+            'Mean_Decrease': np.mean(decreases) if len(decreases) > 0 else 0,
+            'Median_Increase': np.median(increases) if len(increases) > 0 else 0,
+            'Median_Decrease': np.median(decreases) if len(decreases) > 0 else 0,
+            'Max_Increase': np.max(increases) if len(increases) > 0 else 0,
+            'Max_Decrease': np.min(decreases) if len(decreases) > 0 else 0,
+        }
+        
+        # Add percentiles for increases
+        if len(increases) > 0:
+            increase_percentiles = np.percentile(increases, [25, 75, 90])
+            stats.update({
+                'Increase_25th_Percentile': increase_percentiles[0],
+                'Increase_75th_Percentile': increase_percentiles[1],
+                'Increase_90th_Percentile': increase_percentiles[2],
+            })
+        else:
+            stats.update({
+                'Increase_25th_Percentile': 0,
+                'Increase_75th_Percentile': 0,
+                'Increase_90th_Percentile': 0,
+            })
+            
+        # Add percentiles for decreases
+        if len(decreases) > 0:
+            decrease_percentiles = np.percentile(decreases, [10, 25, 75])
+            stats.update({
+                'Decrease_10th_Percentile': decrease_percentiles[0],
+                'Decrease_25th_Percentile': decrease_percentiles[1],
+                'Decrease_75th_Percentile': decrease_percentiles[2],
+            })
+        else:
+            stats.update({
+                'Decrease_10th_Percentile': 0,
+                'Decrease_25th_Percentile': 0,
+                'Decrease_75th_Percentile': 0,
+            })
+        
+        stats_data.append(stats)
+    
+    # Create DataFrame and save to CSV
+    df = pd.DataFrame(stats_data)
+    csv_path = os.path.join(output_dir, 'rouge_score_change_statistics.csv')
+    df.to_csv(csv_path, index=False, float_format='%.4f')
+    
+    # Print summary to console
+    print("\nROUGE Score Change Statistics (k=0 to k=50):")
+    print("=" * 80)
+    for _, row in df.iterrows():
+        model_name = create_model_display_name(row['Model']).replace('\n', ' ')
+        print(f"\nModel: {model_name}")
+        print(f"Total Samples: {int(row['Total_Samples'])}")
+        print(f"Improved: {int(row['Increased_Count'])} samples (Mean: {row['Mean_Increase']:.4f}, Median: {row['Median_Increase']:.4f})")
+        print(f"Decreased: {int(row['Decreased_Count'])} samples (Mean: {row['Mean_Decrease']:.4f}, Median: {row['Median_Decrease']:.4f})")
+        print(f"No Change: {int(row['No_Change_Count'])} samples")
+    
+    return df
+
 def main():
-    """Main function to run the analysis"""
-    # Create output directories if they don't exist
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    args = get_args()
+    dataset = parse_dataset(args.dataset)
     
     # Ensure absolute paths
-    visuals_dir = os.path.join(base_dir, 'files', 'visuals')
-    csvs_dir = os.path.join(base_dir, 'files', 'csv')
-    
-    # Create directories with verbose logging
-    for dir_path in [visuals_dir, csvs_dir]:
-        try:
-            os.makedirs(dir_path, exist_ok=True)
-            print(f"Created directory: {dir_path}")
-        except Exception as e:
-            print(f"Error creating directory {dir_path}: {e}")
-    
-    # Verify directory creation and permissions
-    for dir_path in [visuals_dir, csvs_dir]:
-        if not os.path.exists(dir_path):
-            raise RuntimeError(f"Failed to create directory: {dir_path}")
-        if not os.access(dir_path, os.W_OK):
-            raise RuntimeError(f"No write permissions for directory: {dir_path}")
+    visuals_dir = os.path.join('personality_analysis', 'files', 'visuals')
+    csvs_dir = os.path.join('personality_analysis', 'files', 'csv')
+
+    os.makedirs(visuals_dir, exist_ok=True)
+    os.makedirs(csvs_dir, exist_ok=True)
     
     # Construct input file path with absolute path
-    input_file = os.path.join(os.path.dirname(base_dir), 'evaluation', 'files', 'indv', 'eval_amazon_Grocery_and_Gourmet_Food_2018.json')
+    input_file = os.path.join('evaluation', 'files', 'indv', f'eval_{dataset.tag}.json')
     
-    # Verify input file exists
-    if not os.path.exists(input_file):
-        raise FileNotFoundError(f"Input file not found: {input_file}")
-    
-    # Load and filter data
     filtered_data = load_and_filter_data(input_file)
     print(f"Loaded {len(filtered_data)} filtered experiments")
     
-    # Analyze scores
     results = analyze_scores(filtered_data)
     
-    # Create visualizations with error handling
-    try:
-        analyze_score_transitions(results, csvs_dir)
-        print(f"Score transitions analysis saved to {csvs_dir}")
-    except Exception as e:
-        print(f"Error in score transitions analysis: {e}")
-    
-    try:
-        plot_comparisons(results, visuals_dir)
-        print(f"Plots saved to {visuals_dir}")
-    except Exception as e:
-        print(f"Error creating plots: {e}")
-    
-    try:
-        create_model_comparison_plot(results, visuals_dir)
-        print(f"Model comparison plot saved to {visuals_dir}")
-    except Exception as e:
-        print(f"Error creating model comparison plot: {e}")
+    # Generate all analyses and plots
+    analyze_score_transitions(results, csvs_dir)
+    plot_comparisons(results, visuals_dir)
+    create_model_comparison_plot(results, visuals_dir)
+    plot_score_changes(results, visuals_dir)
+    analyze_score_change_statistics(results, csvs_dir)  # Added this line
 
 if __name__ == "__main__":
     main()
