@@ -24,7 +24,10 @@ def shuffle_lists(list1, list2):
 
 def parse_filename(file, dataset_tag):
 
-    params = file[len(dataset_tag)+1:-5].split("_")
+    if file.endswith(".json"):
+        params = file[len(dataset_tag)+1:-5].split("_")
+    else:
+        params = file[len(dataset_tag)+1:].split("_")
 
     k = re.findall(r'\((.*?)\)', params[-1])[0]
     retriever = params[2]

@@ -1,5 +1,6 @@
 import json
 import re
+import yaml
 
 def parse_json(output):
 
@@ -32,3 +33,11 @@ def parse_cot_output(output: str) -> str:
     last_line = last_line.replace('*', '')
 
     return last_line
+
+def extract_bfi_scores(input_str):
+
+    pattern = r'"([^"]+)"\s*:\s*{\s*"score"\s*:\s*(\d+)'
+    matches = re.findall(pattern, input_str)    
+    result = {trait: int(score) for trait, score in matches}
+    
+    return result

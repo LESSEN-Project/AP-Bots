@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 from evaluate import load
 from openai import OpenAI
@@ -33,9 +34,9 @@ for file in os.listdir(preds_dir):
     if file.startswith(dataset.tag) and file.endswith(".json"):
 
         params = parse_filename(file, dataset.tag)
-        print(f"Model: {params['model']}, Retriever: {params['retriever']}, Features: {params['features']}, RS: {int(params['RS'])}, K: {int(params['k'])}")
+        print(f"Model: {params['model']}, Retriever: {params['retriever']}, Features: {params['features']}, RS: {params['RS']}, K: {params['k']}")
 
-        if file in all_rouge_scores.keys():
+        if file[:-5] in all_rouge_scores.keys():
             print("Individual eval for this already concluded!")
             continue
 
@@ -46,13 +47,14 @@ for file in os.listdir(preds_dir):
         if len(preds) != len(out_gts):
             continue
 
+        sys.stdout.flush()
         rouge_res = []
         for pred, gt in zip(preds, out_gts):
             
             score = rouge.compute(predictions=[pred], references=[gt])
             rouge_res.append(score)
 
-        all_rouge_scores[file] = {
+        all_rouge_scores[file[:-5]] = {
             "params": params,
             "rouge1": [r["rouge1"] for r in rouge_res],
             "rouge2": [r["rouge2"] for r in rouge_res],
@@ -60,5 +62,5 @@ for file in os.listdir(preds_dir):
             "rougeLsum": [r["rougeLsum"] for r in rouge_res],
         }
         
-        with open(file_out_name[:-5], "w") as f:
+        with open(file_out_name, "w") as f:
             json.dump(all_rouge_scores, f)
