@@ -1,6 +1,5 @@
 import json
 import os
-import argparse
 import numpy as np
 import pandas as pd
 
@@ -10,14 +9,13 @@ from scipy import stats
 from collections import defaultdict
 
 from retriever import Retriever
-from exp_datasets import AmazonDataset
 from utils.argument_parser import get_args, parse_dataset
 
 
 def get_model_and_k(exp_key: str) -> Tuple[str, int]:
     """Extract model name and k value from experiment key."""
     parts = exp_key.split("_")
-    model_name = parts[-5]  # Model name is typically the 5th part from the end
+    model_name = parts[-5] 
     k = int(exp_key.split("K(")[-1].split(")")[0])
     return model_name, k
 
@@ -31,10 +29,11 @@ def load_eval_results(eval_file_path: str) -> Dict[str, Any]:
     filtered_results = {}
     for key, value in eval_data.items():
         params = value.get('params', {})
-        if (params.get('RS') == 1 and
+        if (params.get('RS') == '1' and
             params.get('features') == "" and
             params.get('retriever') == "contriever" and
-            params.get('k') in [0, 10]):
+            params.get('k') in ['0', '10'] and
+            params.get('model_name') in ['GEMMA-2-9B', 'GEMMA-2-27B', 'LLAMA-3.1-8B', 'LLAMA-3.1-70B']):
             filtered_results[key] = value
 
     return filtered_results
@@ -59,7 +58,7 @@ def load_predictions(pred_dir: str, experiment_keys: List[str]) -> Dict[str, Dic
 
     # Keep only models that have both k=0 and k=10
     return {model: k_preds for model, k_preds in predictions.items()
-            if 0 in k_preds and 10 in k_preds}
+            if '0' in k_preds and '10' in k_preds}
 
 
 def analyze_distances(distances: List[float], model: str, k: int):
@@ -169,8 +168,8 @@ def analyze_sample_changes(k0_distances: List[float], k10_distances: List[float]
 
 def compare_k_settings(model: str, k0_distances: List[float], k10_distances: List[float]):
     """Compare distance distributions between k=0 and k=10 settings."""
-    k0_stats = analyze_distances(k0_distances, model, 0)
-    k10_stats = analyze_distances(k10_distances, model, 10)
+    k0_stats = analyze_distances(k0_distances, model, '0')
+    k10_stats = analyze_distances(k10_distances, model, '10')
 
     # Calculate improvement metrics
     mean_improvement = k0_stats['mean'] - k10_stats['mean']
@@ -437,12 +436,12 @@ def main():
         print(f"\nAnalyzing model: {model}")
         
         # Get predictions for k=0 and k=10
-        k0_preds = k_preds[0]
-        k10_preds = k_preds[10]
+        k0_preds = k_preds['0']
+        k10_preds = k_preds['10']
         
         # Get ROUGE-L scores for k=0 and k=10
-        k0_exp_key = [k for k in eval_results.keys() if get_model_and_k(k)[0] == model and get_model_and_k(k)[1] == 0][0]
-        k10_exp_key = [k for k in eval_results.keys() if get_model_and_k(k)[0] == model and get_model_and_k(k)[1] == 10][0]
+        k0_exp_key = [k for k in eval_results.keys() if get_model_and_k(k)[0] == model and get_model_and_k(k)[1] == '0'][0]
+        k10_exp_key = [k for k in eval_results.keys() if get_model_and_k(k)[0] == model and get_model_and_k(k)[1] == '10'][0]
         
         k0_rouge = eval_results[k0_exp_key]['rougeL']
         k10_rouge = eval_results[k10_exp_key]['rougeL']
