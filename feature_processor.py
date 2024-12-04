@@ -11,6 +11,8 @@ from nltk.tokenize import word_tokenize
 from nltk import pos_tag
 from nltk.corpus import stopwords
 
+from utils.output_parser import extract_bfi_scores
+
 class FeatureProcessor():
 
     def __init__(self) -> None:
@@ -134,6 +136,14 @@ class FeatureProcessor():
 
         return sorted_patterns
     
+    def get_bfi_scores(self, texts):
+        if not isinstance(texts, list):
+            texts = [texts]
+
+        bfi_scores = [extract_bfi_scores(text) for text in texts]
+
+        return bfi_scores
+
     def feat_name_mappings(self):
         return {
             "MSWC": {
@@ -185,6 +195,11 @@ class FeatureProcessor():
                 "full_name": "Word Frequencies",
                 "desc": "Most frequently used words of the writer",
                 "func": self.get_word_frequency
+            },
+            "BFI": {
+                "full_name": "Big Five Inventory Scores",
+                "desc": "Scores for the Big Five Inventory traits of the writer (from 1 to 5)",
+                "func": self.get_bfi_scores
             }
         }
 
@@ -213,8 +228,13 @@ class FeatureProcessor():
                 print(f"Preparing {feature}")
                 if feature in ["NEF", "DPF"]:
                     author_features[feature] = [feature_mappings[feature]["func"](text) for text in full_auth_texts]
+                elif feature == "BFI":
+                    bfi_path = "personality_analysis/files/inferred_bfi/amazon_Grocery_and_Gourmet_Food_2018_UP_BFI_GEMMA-2-27B.json"
+                    with open(bfi_path, "r") as f:
+                        bfi_texts = json.load(f)
+                    author_features[feature] = [feature_mappings[feature]["func"](text) for text in bfi_texts]
                 else:
-                    if feature == "WF":
+                    if feature == "WF" or feature == "BFI":
                         author_features[feature] = [feature_mappings[feature]["func"](text) for text in author_texts]
                     else:
                         author_features[feature] = [np.mean(feature_mappings[feature]["func"](text)) for text in author_texts]
@@ -227,8 +247,10 @@ class FeatureProcessor():
         for i in range(len(all_features[list(all_features.keys())[0]])):
             proc_author_features = []
             for feature in feature_list:
-                if not feature.endswith("F"):
+                if not feature.endswith("F") and feature != "BFI":
                     pers_value = round(all_features[feature][i], 3)
+                elif feature == "BFI":
+                    pers_value = all_features[feature][i]
                 else:
                     pers_value = [w for w, _ in all_features[feature][i][:top_k]]
                 feat_desc = f"-{self.feat_name_mappings()[feature]['desc']} is: {pers_value}"
