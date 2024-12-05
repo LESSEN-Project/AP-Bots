@@ -56,11 +56,10 @@ def oai_get_or_create_file(client, filename):
         print(f"File '{filename}' created. File ID: {new_file.id}")
         return new_file.id
     
-def oai_get_batch_res(client):
+def oai_get_batch_res(client, pred_path=os.path.join("files", "preds")):
 
     batches = client.batches.list()
     files = client.files.list()
-    pred_path = os.path.join("files", "preds")
 
     for batch in batches:
         
@@ -78,15 +77,16 @@ def oai_get_batch_res(client):
             batch_res = client.files.content(batch.output_file_id).text
             batch_res = [json.loads(line) for line in batch_res.splitlines()]
 
-            for sample in data:
-                res = [res["response"]["body"]["choices"][0]["message"]["content"] for res in batch_res if res["custom_id"] == sample["custom_id"]]
-                merged_res.append({
-                    "id": sample["custom_id"],
-                    "prompt": sample["body"]["messages"][0]["content"],
-                    "output": res[0].strip(),
-                    "model_inf_time": "n/a", 
-            })
-            with open(os.path.join(pred_path, f"{filename[0].split('.')[0]}.json"), "w") as f:
-                json.dump({
-                    "golds": merged_res
-                }, f)
+            if pred_path == os.path.join("files", "preds"):
+                for sample in data:
+                    res = [res["response"]["body"]["choices"][0]["message"]["content"] for res in batch_res if res["custom_id"] == sample["custom_id"]]
+                    merged_res.append({
+                        "id": sample["custom_id"],
+                        "prompt": sample["body"]["messages"][0]["content"],
+                        "output": res[0].strip(),
+                        "model_inf_time": "n/a", 
+                })
+                with open(os.path.join(pred_path, f"{filename[0].split('.')[0]}.json"), "w") as f:
+                    json.dump({
+                        "golds": merged_res
+                    }, f)
