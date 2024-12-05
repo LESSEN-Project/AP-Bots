@@ -16,7 +16,7 @@ def get_model_and_k(exp_key: str) -> Tuple[str, int]:
     """Extract model name and k value from experiment key."""
     parts = exp_key.split("_")
     model_name = parts[-5] 
-    k = int(exp_key.split("K(")[-1].split(")")[0])
+    k = exp_key.split("K(")[-1].split(")")[0]
     return model_name, k
 
 
@@ -33,7 +33,7 @@ def load_eval_results(eval_file_path: str) -> Dict[str, Any]:
             params.get('features') == "" and
             params.get('retriever') == "contriever" and
             params.get('k') in ['0', '10'] and
-            params.get('model_name') in ['GEMMA-2-9B', 'GEMMA-2-27B', 'LLAMA-3.1-8B', 'LLAMA-3.1-70B']):
+            params.get('model') in ['GEMMA-2-9B', 'GEMMA-2-27B', 'LLAMA-3.1-8B', 'LLAMA-3.1-70B']):
             filtered_results[key] = value
 
     return filtered_results

@@ -112,7 +112,7 @@ def analyze_score_transitions(results, output_dir):
     transition_stats = {}
     detailed_transitions = {}
     
-    for model in results[0].keys():
+    for model in results['0'].keys():
         scores_k0 = np.array(results['0'][model])
         scores_k10 = np.array(results['10'][model])
         
@@ -325,8 +325,8 @@ def create_model_comparison_plot(results, output_dir):
     # Process each model
     for idx, model in enumerate(models_to_compare):
 
-        scores_k0 = np.array(results[0].get(model, []))
-        scores_k10 = np.array(results[10].get(model, []))
+        scores_k0 = np.array(results['0'].get(model, []))
+        scores_k10 = np.array(results['10'].get(model, []))
         
         ax = fig.add_subplot(2, 2, idx + 1)
         
@@ -366,13 +366,13 @@ def plot_score_changes(results, output_dir):
     Create a bar plot showing the number of samples with increased/decreased ROUGE scores
     when k is increased from 0 to 10 for each model.
     """
-    models = list(results[0].keys())
+    models = list(results['0'].keys())
     increased = []
     decreased = []
     
     for model in models:
-        k0_scores = np.array(results[0][model])
-        k10_scores = np.array(results[10][model])
+        k0_scores = np.array(results['0'][model])
+        k10_scores = np.array(results['10'][model])
         
         # Calculate differences
         diff = k10_scores - k0_scores
@@ -423,9 +423,9 @@ def analyze_score_change_statistics(results, output_dir):
     """
     stats_data = []
     
-    for model in results[0].keys():
-        k0_scores = np.array(results[0][model])
-        k10_scores = np.array(results[10][model])
+    for model in results['0'].keys():
+        k0_scores = np.array(results['0'][model])
+        k10_scores = np.array(results['10'][model])
         
         # Calculate differences
         diff = k10_scores - k0_scores

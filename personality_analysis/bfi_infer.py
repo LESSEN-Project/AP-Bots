@@ -20,7 +20,7 @@ args, dataset, final_feature_list, k = parse_args()
 MAX_NEW_TOKENS = 512
 TEMPERATURE = 0.01
 
-bfi_model = "GEMMA-2-27B"
+bfi_model = "LLAMA-3.1-8B"
 # bfi_model = "GPT-4o-mini"
 llm = LLM(model_name=bfi_model)
 all_models = get_model_list() + ["UP"]
@@ -100,7 +100,7 @@ for model_name in all_models:
 
     if llm.family == "GPT" and args.openai_batch:
 
-        batch_file_path = os.path.join(bfi_path, f"{exp_name}_BFI.jsonl")
+        batch_file_path = os.path.join(bfi_path, f"{exp_name}_BFI_{bfi_model}.jsonl")
 
         with open(batch_file_path, "w") as file:
             for i, prompt in enumerate(all_prompts):
