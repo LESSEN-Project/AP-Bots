@@ -2,6 +2,7 @@ import os
 import json
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 
 from scipy import stats
@@ -46,12 +47,21 @@ predictions = load_predictions(pred_dir, list(eval_results.keys()))
 ground_truth = dataset.get_gts()
 print(f"Loaded {len(ground_truth)} ground truth samples")
 
-bfi_model="GEMMA-2-27B"
+bfi_model="LLAMA-3.1-8B"
 bfi_file = os.path.join("personality_analysis", "files", "bfi_results", f"{bfi_model}_{dataset.tag}.json")
 up_bfi_results, exp_bfi_results = load_bfi(bfi_file, list(eval_results.keys()))
+# up_bfi_results = up_bfi_results.astype(int)
 
 for key in up_bfi_results.columns:
     print(up_bfi_results[key].value_counts())
+    print(f"Number of infinite values: {np.sum(np.isinf(up_bfi_results[key]))}")
+    print(f"Number of NA values: {up_bfi_results[key].isna().sum()}")
+    
+    # Fill NA values with mean
+    if up_bfi_results[key].isna().any():
+        up_bfi_results[key] = up_bfi_results[key].fillna(up_bfi_results[key].mean())
+        
+    up_bfi_results[key] = up_bfi_results[key].astype(int)
 
 # Create directory for saving plots
 visuals_dir = os.path.join("personality_analysis", "files", "visuals", "bfi_analysis")
@@ -65,40 +75,48 @@ for model_key in exp_bfi_results:
         df = exp_bfi_results[model_key][k_key]
         print(f"BFI analysis for {model_key, k_key}:")
         rougeL = get_exp_eval_results(eval_results, model_key, k_key)
+        rougeL = [round(r*100, 1) for r in rougeL]
+        # print(pd.Series(rougeL).describe())
 
         # Adding Visualizations
         for trait in df.columns:
             
-            f_value, p_value = stats.f_oneway(rougeL, up_bfi_results[trait])
-            print(f"ANOVA between ROUGE-L and user {trait}: F({f_value:.4f}), p({p_value:.4e})")
+            # f_value, p_value = stats.f_oneway(rougeL, up_bfi_results[trait])
+            # print(f"ANOVA between ROUGE-L and {trait}: F({f_value:.4f}), p({p_value:.4e})")
 
-            trait_diff = int(df[trait].mean()) - up_bfi_results[trait]
+            trait_diff = abs(df[trait] - up_bfi_results[trait])
+            trait_diff = trait_diff.astype('category')
+            # ANOVA analysis
             f_value, p_value = stats.f_oneway(rougeL, trait_diff)
             print(f"ANOVA between ROUGE-L and {trait} diff: F({f_value:.4f}), p({p_value:.4e})")
+            
+            # Correlation analysis
+            corr_coef, corr_p = stats.pearsonr(rougeL, trait_diff.astype(float))
+            print(f"Correlation between ROUGE-L and {trait} diff: r({corr_coef:.4f}), p({corr_p:.4e})")
 
             # Plotting Box Plot to visualize distribution
             plt.figure(figsize=(10, 6))
-            sns.boxplot(x=up_bfi_results[trait], y=rougeL)
+            sns.boxplot(x=trait_diff, y=rougeL)
             plt.title(f'Box Plot of ROUGE-L vs {trait}')
             plt.xlabel(f'{trait} Scores')
             plt.ylabel('ROUGE-L')
-            plt.savefig(os.path.join(visuals_dir, f'boxplot_rougeL_vs_{trait}_{model_key}_{k_key}.png'))
+            plt.savefig(os.path.join(visuals_dir, f'boxplot_rougeL_vs_{trait}_diff_{model_key}_{k_key}.png'))
             plt.close()
 
             # Plotting Violin Plot for detailed distribution and density
             plt.figure(figsize=(10, 6))
-            sns.violinplot(x=up_bfi_results[trait], y=rougeL)
+            sns.violinplot(x=trait_diff, y=rougeL)
             plt.title(f'Violin Plot of ROUGE-L vs {trait}')
             plt.xlabel(f'{trait} Scores')
             plt.ylabel('ROUGE-L')
-            plt.savefig(os.path.join(visuals_dir, f'violinplot_rougeL_vs_{trait}_{model_key}_{k_key}.png'))
+            plt.savefig(os.path.join(visuals_dir, f'violinplot_rougeL_vs_{trait}_diff_{model_key}_{k_key}.png'))
             plt.close()
 
             # Scatter Plot with jitter to observe potential patterns
             plt.figure(figsize=(10, 6))
-            sns.stripplot(x=up_bfi_results[trait], y=rougeL, jitter=True, alpha=0.6)
+            sns.stripplot(x=trait_diff, y=rougeL, jitter=True, alpha=0.6)
             plt.title(f'Scatter Plot of ROUGE-L vs {trait} (with jitter)')
             plt.xlabel(f'{trait} Scores')
             plt.ylabel('ROUGE-L')
-            plt.savefig(os.path.join(visuals_dir, f'scatterplot_rougeL_vs_{trait}_{model_key}_{k_key}.png'))
+            plt.savefig(os.path.join(visuals_dir, f'scatterplot_rougeL_vs_{trait}_diff_{model_key}_{k_key}.png'))
             plt.close()

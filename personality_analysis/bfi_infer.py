@@ -22,7 +22,16 @@ TEMPERATURE = 0.01
 
 bfi_model = "LLAMA-3.1-8B"
 # bfi_model = "GPT-4o-mini"
-llm = LLM(model_name=bfi_model)
+
+model_params = {
+    "quantization": {
+        "load_in_4bit": True,
+        "bnb_4bit_compute_dtype": torch.float16,
+        "bnb_4bit_quant_type": "nf4",
+        "bnb_4bit_use_double_quant": True
+    }
+}
+llm = LLM(model_name=bfi_model, model_params=model_params)
 all_models = get_model_list() + ["UP"]
 
 _, retr_texts, retr_gts = dataset.get_retr_data() 

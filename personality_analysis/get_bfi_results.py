@@ -10,7 +10,7 @@ from utils.argument_parser import parse_args
 from utils.output_parser import extract_bfi_scores
 
 _, dataset, _, _ = parse_args()
-bfi_model = "GEMMA-2-27B"
+bfi_model = "LLAMA-3.1-8B"
 
 bfi_dir = os.path.join("personality_analysis", "files", "inferred_bfi")
 out_dir = os.path.join("personality_analysis", "files", "bfi_results")
