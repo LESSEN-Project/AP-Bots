@@ -20,7 +20,7 @@ args, dataset, final_feature_list, k = parse_args()
 MAX_NEW_TOKENS = 512
 TEMPERATURE = 0.01
 
-bfi_model = "LLAMA-3.1-8B"
+bfi_model = "LLAMA-3.3-70B"
 # bfi_model = "GPT-4o-mini"
 
 model_params = {
