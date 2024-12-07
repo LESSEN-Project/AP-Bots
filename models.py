@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore")
 from huggingface_hub import login, logging
 logging.set_verbosity_error()
 import tiktoken
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, logging
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, logging, BitsAndBytesConfig
 logging.set_verbosity_error()
 
 from openai import OpenAI
@@ -222,8 +222,16 @@ class LLM:
             genai.configure(**self.model_params)
             return genai.GenerativeModel(self.repo_id)      
         else: 
+            bnb_config = None
+            if "quantization" in self.model_params:
+                quant_params = self.model_params.pop("quantization")
+                if isinstance(quant_params, dict):
+                    bnb_config = BitsAndBytesConfig(**quant_params)
+                elif isinstance(quant_params, BitsAndBytesConfig):
+                    bnb_config = quant_params
             return AutoModelForCausalLM.from_pretrained(
                     self.repo_id,
                     **self.model_params,
+                    quantization_config=bnb_config,
                     low_cpu_mem_usage=True,
                     device_map="auto")

@@ -64,7 +64,20 @@ for model_name in LLMs:
         print("Batch openai jobs can only be done on the whole dataset!")
         continue
 
-    llm = LLM(model_name=model_name)
+    model_params = None
+
+    if "70B" in model_name:
+        print("70B model, using quantization!")
+        model_params = {
+            "quantization": {
+                "load_in_4bit": True,
+                "bnb_4bit_compute_dtype": torch.float16,
+                "bnb_4bit_quant_type": "nf4",
+                "bnb_4bit_use_double_quant": True
+            }
+        }
+    
+    llm = LLM(model_name=model_name, model_params=model_params)
 
     print(f"Starting from sample no. {len(all_res)}")
 
