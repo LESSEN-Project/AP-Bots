@@ -3,12 +3,12 @@ import json
 import sys
 import copy
 
+import torch 
 import numpy as np
 from openai import OpenAI
 
 from models import LLM
 from prompts import get_BFI_prompts
-
 from utils.argument_parser import parse_args
 from utils.file_utils import oai_get_or_create_file
 from utils.misc import get_model_list
