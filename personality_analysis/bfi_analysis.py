@@ -47,7 +47,7 @@ predictions = load_predictions(pred_dir, list(eval_results.keys()))
 ground_truth = dataset.get_gts()
 print(f"Loaded {len(ground_truth)} ground truth samples")
 
-bfi_model="LLAMA-3.1-8B"
+bfi_model="LLAMA-3.3-70B"
 bfi_file = os.path.join("personality_analysis", "files", "bfi_results", f"{bfi_model}_{dataset.tag}.json")
 up_bfi_results, exp_bfi_results = load_bfi(bfi_file, list(eval_results.keys()))
 # up_bfi_results = up_bfi_results.astype(int)

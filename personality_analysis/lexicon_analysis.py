@@ -3,19 +3,19 @@ from collections import Counter
 import pandas as pd
 import numpy as np
 from textblob import TextBlob
-from scipy.stats import ttest_ind, mannwhitneyu, kruskal
+from scipy.stats import ttest_ind, mannwhitneyu
 import seaborn as sns
 import matplotlib.pyplot as plt
 import os
 
 from utils.argument_parser import get_args, parse_dataset
-from personality_analysis.analysis_utils import load_eval_results, load_predictions, get_model_and_k, get_exp_eval_results
+from personality_analysis.analysis_utils import load_eval_results, load_predictions, get_model_and_k
 
 nlp = spacy.load("en_core_web_sm")
 
 ext_lexicons = {
     "good", "well", "new", "love",
-    "we", "our", "us", "help",
+    "we", "our", "us", "help", 
     "really", "actually", "real",
     "said", "care", "friend"
 }
@@ -30,7 +30,7 @@ agr_lexicons = {
 
 con_lexicons = {
     "work", "better", "best",
-    "work", "price", "market",
+    "work", "price", "market", 
     "wrong", "honor", "judge",
     "fight", "attack",
     "when", "now", "then"
@@ -63,7 +63,6 @@ personality_lexicons = {
 
 
 def get_features(text):
-
     doc = nlp(text)
     tokens = [t.text.lower() for t in doc if not t.is_space and not t.is_punct]
     num_tokens = len(tokens)
@@ -128,93 +127,31 @@ def calculate_feature_differences(user_features, llm_features):
     return differences
 
 
-def analyze_feature_impact(feature_differences, rouge_k0, rouge_k10, n_bins=5):
-    """Analyze how ROUGE score changes across different feature ranges using binning."""
-    rouge_change = [round(k10 - k0, 4) for k10, k0 in zip(rouge_k10, rouge_k0)]
+def plot_feature_differences(user_df, llm_df, model_key, k_key, output_dir):
+    """Create plots showing feature differences between user and LLM texts"""
+    features = [c for c in user_df.columns]
     
-    # Create DataFrame with all features and ROUGE change
-    df = pd.DataFrame(feature_differences)
-    df['rouge_change'] = rouge_change
+    # Create difference plot
+    plt.figure(figsize=(15, 8))
+    differences = []
+    for feature in features:
+        user_mean = user_df[feature].mean()
+        llm_mean = llm_df[feature].mean()
+        # Calculate percentage difference
+        if user_mean != 0:
+            pct_diff = ((llm_mean - user_mean) / user_mean) * 100
+        else:
+            pct_diff = 0 if llm_mean == 0 else 100
+        differences.append(pct_diff)
     
-    feature_impacts = {}
-    for feature in df.columns:
-        if feature != 'rouge_change':
-            try:
-                # Create bins with labels
-                df['bin'], bin_edges = pd.qcut(df[feature], n_bins, retbins=True, labels=False)
-                
-                # Calculate mean ROUGE change for each bin
-                bin_stats = df.groupby('bin')['rouge_change'].agg(['mean', 'std', 'count']).round(4)
-                
-                # Add bin boundaries
-                bin_stats['start'] = bin_edges[:-1]
-                bin_stats['end'] = bin_edges[1:]
-                
-                feature_impacts[feature] = bin_stats
-                
-                # Perform Kruskal-Wallis H-test to check if differences between bins are significant
-                groups = [group['rouge_change'].values for _, group in df.groupby('bin')]
-                if len(groups) > 1:  # Only perform test if we have at least 2 groups
-                    h_stat, p_val = kruskal(*groups)
-                    feature_impacts[feature].attrs['h_stat'] = round(h_stat, 4)
-                    feature_impacts[feature].attrs['p_value'] = round(p_val, 4)
-                else:
-                    print(f"Skipping statistical test for {feature}: not enough distinct groups")
-                    feature_impacts[feature].attrs['h_stat'] = 0
-                    feature_impacts[feature].attrs['p_value'] = 1.0
-                    
-            except ValueError as e:
-                # Skip features that can't be binned (e.g., constant values)
-                print(f"Skipping {feature}: {str(e)}")
-                continue
-    
-    return feature_impacts
-
-
-def plot_feature_impacts(feature_impacts, model_key, output_dir):
-    """Create visualization showing ROUGE score changes across feature bins."""
-    features = list(feature_impacts.keys())
-    if not features:
-        print(f"No features to plot for {model_key}")
-        return
-        
-    n_features = len(features)
-    n_cols = 3
-    n_rows = (n_features + n_cols - 1) // n_cols
-    
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 4*n_rows))
-    axes = axes.flatten()
-    
-    for i, feature in enumerate(features):
-        ax = axes[i]
-        stats = feature_impacts[feature]
-        
-        # Plot mean ROUGE change for each bin
-        x = range(len(stats))
-        ax.bar(x, stats['mean'], yerr=stats['std'], alpha=0.6)
-        
-        # Add bin ranges as x-tick labels
-        labels = [f"[{start:.3f},\n{end:.3f}]" for start, end in zip(stats['start'], stats['end'])]
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels, rotation=45, ha='right')
-        
-        ax.set_xlabel(f"{feature} bins")
-        ax.set_ylabel('Mean ROUGE-L Change')
-        
-        # Add statistical test results
-        h_stat = feature_impacts[feature].attrs['h_stat']
-        p_val = feature_impacts[feature].attrs['p_value']
-        ax.set_title(f"{feature}\nH={h_stat:.2f}, p={p_val:.4f}")
-        
-        # Add horizontal line at y=0
-        ax.axhline(y=0, color='black', linestyle='--', alpha=0.3)
-    
-    # Hide empty subplots
-    for j in range(i+1, len(axes)):
-        axes[j].set_visible(False)
-    
+    colors = ['red' if d < 0 else 'blue' for d in differences]
+    plt.bar(features, differences, color=colors)
+    plt.xticks(rotation=45, ha='right')
+    plt.axhline(y=0, color='black', linestyle='--', alpha=0.3)
+    plt.title(f'Feature Differences (% change from User) for {model_key} k={k_key}')
+    plt.ylabel('Percentage Difference (%)')
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, f'{model_key}_feature_impacts.png'), dpi=150)
+    plt.savefig(os.path.join(output_dir, f'{model_key}_{k_key}_feature_differences.png'), dpi=150)
     plt.close()
 
 
@@ -252,132 +189,54 @@ else:
     user_df = pd.DataFrame(user_features)
     user_df.to_csv(user_df_path, index=False)
 
-# Store k=0 data for later comparison
-k0_data = {}
 for model_key in predictions:
-    if '0' in predictions[model_key]:
-        print(f"\nAnalyzing initial differences for {model_key}...")
-        
-        # Calculate initial differences
-        differences_list = []
-        for i, (llm_text, user_feats) in enumerate(zip(predictions[model_key]['0'], 
-                                                      user_df.to_dict('records'))):
-            llm_feats = get_features(llm_text)
-            differences = calculate_feature_differences(user_feats, llm_feats)
-            differences_list.append(differences)
-        
-        k0_data[model_key] = {
-            'differences': differences_list,
-            'rouge': get_exp_eval_results(eval_results, model_key, '0')
-        }
+    for k_key in ['0', '10']:
+        if k_key in predictions[model_key]:
+            print(f"\nAnalyzing features for {model_key} (k={k_key})...")
 
-# Compare with k=10 data
-for model_key in k0_data:
-    if '10' in predictions[model_key]:
-        print(f"\nAnalyzing ROUGE score changes for {model_key}...")
-        
-        # Get k=10 ROUGE scores
-        rouge_k10 = get_exp_eval_results(eval_results, model_key, '10')
-        
-        # Analyze feature impacts on ROUGE changes
-        feature_impacts = analyze_feature_impact(
-            k0_data[model_key]['differences'],
-            k0_data[model_key]['rouge'],
-            rouge_k10
-        )
-        
-        # Print results for features with significant differences
-        print("\nFeature impacts on ROUGE-L changes:")
-        for feature, stats in feature_impacts.items():
-            if stats.attrs['p_value'] < 0.05:  # Show only significant results
-                print(f"\n{feature} (H={stats.attrs['h_stat']:.2f}, p={stats.attrs['p_value']:.4f}):")
-                print(stats[['mean', 'std', 'count']].round(4))
-        
-        # Create visualizations
-        plot_feature_impacts(feature_impacts, model_key, visuals_dir)
+            llm_texts = predictions[model_key][k_key]
+            llm_df_path = os.path.join(csv_dir, f"lexicon_{model_key}_{k_key}_features.csv")
 
-for model_key in predictions:
-    for k_key in predictions[model_key]:
-
-        rougeL = get_exp_eval_results(eval_results, model_key, k_key)
-
-        print(f"Lexicon analysis for {model_key, k_key}:")
-
-        llm_texts = predictions[model_key][k_key]
-        
-        # Calculate LLM features and differences
-        differences_list = []
-        for i, (llm_text, user_feats) in enumerate(zip(llm_texts, user_df.to_dict('records'))):
-            llm_feats = get_features(llm_text)
-            differences = calculate_feature_differences(user_feats, llm_feats)
-            differences_list.append(differences)
-            
-            if (i+1) % 100 == 0:
-                print(f"Processed {i+1} samples")
-        
-        llm_df_path = os.path.join(csv_dir, f"lexicon_{model_key}_{k_key}_features.csv")
-
-        if os.path.exists(llm_df_path):
-            llm_df = pd.read_csv(llm_df_path)
-        else:
-            llm_df = pd.DataFrame([get_features(text) for text in llm_texts])
-            llm_df.to_csv(llm_df_path, index=False)
-
-        print("Aggregated user features and single LLM text features saved.")
-
-        features = [c for c in user_df.columns]
-
-        user_plot_df = user_df.assign(Source="User")
-        llm_plot_df = llm_df.assign(Source="LLM")
-        combined_df = pd.concat([user_plot_df, llm_plot_df], ignore_index=True)
-
-        print("\n=== Statistical Tests at User Level ===")
-        for feature in features:
-            user_values = user_df[feature].dropna()
-            llm_values = llm_df[feature].dropna()
-            if len(user_values) > 1 and len(llm_values) > 1:
-                t_stat, t_pval = ttest_ind(user_values, llm_values, equal_var=False)
-                u_stat, u_pval = mannwhitneyu(user_values, llm_values, alternative='two-sided')
-
-                print(f"Feature: {feature}")
-                print(f"  Mean (User): {user_values.mean():.4f}, Mean (LLM): {llm_values.mean():.4f}")
-                print(f"  t-test p-value: {t_pval:.4f}")
-                print(f"  Mann-Whitney U p-value: {u_pval:.4f}\n")
+            if os.path.exists(llm_df_path):
+                llm_df = pd.read_csv(llm_df_path)
             else:
-                print(f"Feature: {feature}")
-                print("  Not enough data for statistical tests.\n")
+                # Calculate LLM features
+                llm_features = []
+                for i, llm_text in enumerate(llm_texts):
+                    llm_feats = get_features(llm_text)
+                    llm_features.append(llm_feats)
+                    
+                    if (i+1) % 100 == 0:
+                        print(f"Processed {i+1} samples")
+                
+                llm_df = pd.DataFrame(llm_features)
+                llm_df.to_csv(llm_df_path, index=False)
+            
+            # Calculate differences
+            differences_list = []
+            for user_feats, llm_feats in zip(user_df.to_dict('records'), llm_df.to_dict('records')):
+                differences = calculate_feature_differences(user_feats, llm_feats)
+                differences_list.append(differences)
 
-        """
-        for feature in features:
-            plt.figure(figsize=(8,6))
-            sns.boxplot(x="Source", y=feature, data=combined_df)
-            plt.title(f"{feature} Distribution across Users")
-            plt.savefig(os.path.join(visuals_dir, f"{model_key}_{k_key}_{feature}_user_boxplot.png"), dpi=150)
-            plt.close()
-        """
+            features = [c for c in user_df.columns]
 
-        mean_values = combined_df.groupby("Source")[features].mean().reset_index()
-        melted_means = mean_values.melt(id_vars="Source", value_vars=features, var_name="Feature", value_name="MeanValue")
+            print("\n=== Statistical Tests at User Level ===")
+            for feature in features:
+                user_values = user_df[feature].dropna()
+                llm_values = llm_df[feature].dropna()
+                if len(user_values) > 1 and len(llm_values) > 1:
+                    t_stat, t_pval = ttest_ind(user_values, llm_values, equal_var=False)
+                    u_stat, u_pval = mannwhitneyu(user_values, llm_values, alternative='two-sided')
 
-        # Add ROUGE-L scores to the feature dataframes
-        user_df_with_rouge = user_df[features].copy()
-        user_df_with_rouge['rouge_L'] = rougeL
-        
-        llm_df_with_rouge = llm_df[features].copy()
-        llm_df_with_rouge['rouge_L'] = rougeL
+                    print(f"Feature: {feature}")
+                    print(f"  Mean (User): {user_values.mean():.4f}, Mean (LLM): {llm_values.mean():.4f}")
+                    print(f"  t-test p-value: {t_pval:.4f}")
+                    print(f"  Mann-Whitney U p-value: {u_pval:.4f}\n")
+                else:
+                    print(f"Feature: {feature}")
+                    print("  Not enough data for statistical tests.\n")
 
-        plt.figure(figsize=(10,8))
-        sns.heatmap(user_df_with_rouge.corr(), annot=True, cmap="coolwarm", vmin=-1, vmax=1, fmt='.2f')
-        plt.title("User Feature Correlations with ROUGE-L (User texts)")
-        plt.tight_layout()
-        plt.savefig(os.path.join(visuals_dir, f"{model_key}_{k_key}_user_feature_correlations_users.png"), dpi=150)
-        plt.close()
+            # Create visualization of feature differences
+            plot_feature_differences(user_df, llm_df, model_key, k_key, visuals_dir)
 
-        plt.figure(figsize=(10,8))
-        sns.heatmap(llm_df_with_rouge.corr(), annot=True, cmap="coolwarm", vmin=-1, vmax=1, fmt='.2f')
-        plt.title("LLM Feature Correlations with ROUGE-L (LLM texts)")
-        plt.tight_layout()
-        plt.savefig(os.path.join(visuals_dir, f"{model_key}_{k_key}_llm_feature_correlations_users.png"), dpi=150)
-        plt.close()
-
-        print("Analysis completed. Check CSV files and 'plots' directory for results.")
+            print(f"Analysis completed for {model_key} k={k_key}. Check CSV files and 'plots' directory for results.")

@@ -26,15 +26,16 @@ def load_eval_results(eval_file_path: str) -> Dict[str, Any]:
             params.get('features') == "" and
             params.get('retriever') == "contriever" and
             params.get('k') in ['0', '10'] and
-            params.get('model') in ['GEMMA-2-9B', 'GEMMA-2-27B', 'LLAMA-3.1-8B', 'LLAMA-3.1-70B']):
+            params.get('model') in ['GEMMA-2-9B', 'GEMMA-2-27B', 'LLAMA-3.1-8B', 'LLAMA-3.3-70B']):
             filtered_results[key] = value
 
+    print(filtered_results.keys())
     return filtered_results
 
 
 def load_predictions(pred_dir: str, experiment_keys: List[str]) -> Dict[str, Dict[int, List[str]]]:
     """Load predictions and organize them by model and k value."""
-    predictions = defaultdict(dict)  # model -> k -> predictions
+    predictions = defaultdict(dict)
 
     for exp_key in experiment_keys:
         pred_file = os.path.join(pred_dir, f"{exp_key}.json")

@@ -24,7 +24,8 @@ cols = ["model", "features", "retriever", "RS", "k"]
 
 rouge = load("rouge")
 bleu = load("bleu")
-cols.extend(["rouge1", "rouge2", "rougeL", "rougeLsum", "bleu"])
+meteor = load("meteor")
+cols.extend(["rouge1", "rouge2", "rougeL", "rougeLsum", "bleu", "meteor"])
 
 for file in os.listdir(preds_dir):
 
@@ -42,8 +43,10 @@ for file in os.listdir(preds_dir):
 
         rouge_results = rouge.compute(predictions=preds, references=out_gts)
         bleu_results = bleu.compute(predictions=preds, references=[[gt] for gt in out_gts])
+        meteor_results = meteor.compute(predictions=preds, references=[[gt] for gt in out_gts])
         res_dict = params | rouge_results
         res_dict["bleu"] = bleu_results["bleu"]
+        res_dict["meteor"] = meteor_results["meteor"]
         
         all_res.append(res_dict)
 
