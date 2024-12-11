@@ -4,17 +4,17 @@ import numpy as np
 
 from utils.argument_parser import parse_args
 
-_, dataset, _, _ = parse_args
+_, dataset, _, _ = parse_args()
 
 rand_k = 20
-preds_dir = "preds"
+preds_dir = "files/preds"
 
 out_gts = dataset.get_gts()
 rand_samples = np.random.choice(range(len(out_gts)), rand_k, replace=False)
 
 model_samples = {}
 for file in os.listdir(preds_dir):
-    if file.startswith(dataset.tag) and file.endswith(".json") and "K(0)" in file:
+    if file.startswith(dataset.tag) and file.endswith(".json") and "WF" in file:
         with open(os.path.join(preds_dir, file), "r") as f:
             preds = json.load(f)["golds"]
             preds = [p["output"] for p in preds]

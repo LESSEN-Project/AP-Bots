@@ -66,7 +66,7 @@ for model_name in LLMs:
 
     model_params = None
 
-    if "70B" in model_name:
+    if model_name.endswith("70B"):
         print("70B model, using quantization!")
         model_params = {
             "quantization": {
