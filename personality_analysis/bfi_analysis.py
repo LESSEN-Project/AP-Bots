@@ -14,6 +14,7 @@ from utils.argument_parser import get_args, parse_dataset
 
 def load_bfi(bfi_file, experiment_keys):
 
+    print(experiment_keys)
     bfi_predictions = defaultdict(dict)
 
     with open(bfi_file, "r") as f:
@@ -53,7 +54,6 @@ up_bfi_results, exp_bfi_results = load_bfi(bfi_file, list(eval_results.keys()))
 # up_bfi_results = up_bfi_results.astype(int)
 
 for key in up_bfi_results.columns:
-    print(up_bfi_results[key].value_counts())
     print(f"Number of infinite values: {np.sum(np.isinf(up_bfi_results[key]))}")
     print(f"Number of NA values: {up_bfi_results[key].isna().sum()}")
     
@@ -68,7 +68,7 @@ visuals_dir = os.path.join("personality_analysis", "files", "visuals", "bfi_anal
 os.makedirs(visuals_dir, exist_ok=True)
 
 print("BFI summary for User profiles:")
-
+print(exp_bfi_results)
 for model_key in exp_bfi_results:
     for k_key in exp_bfi_results[model_key]:
 

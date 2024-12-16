@@ -72,7 +72,7 @@ def amazon_BFI_analysis(text):
                        4. **Agreeableness:** Relates to trustworthiness, altruism, and cooperation. High scores reflect a compassionate and friendly demeanor, whereas low scores may indicate a more competitive or challenging disposition.
                        5. **Neuroticism:** Concerns emotional stability and tendency toward negative emotions. High scores indicate a propensity for experiencing stress and mood swings, while low scores suggest calmness and emotional resilience.
                        Reviews: {text}
-                       Please respond in JSON format. Each trait should be a key, and it should have two values: the score and a brief explanation.""")
+                       Respond in JSON format where each trait is a key, and the value is the corresponding score of the trait. Do not output anything besides the json.""")
     }]
 
 

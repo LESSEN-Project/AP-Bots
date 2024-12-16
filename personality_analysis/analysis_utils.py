@@ -29,7 +29,6 @@ def load_eval_results(eval_file_path: str) -> Dict[str, Any]:
             params.get('model') in ['GEMMA-2-9B', 'GEMMA-2-27B', 'LLAMA-3.1-8B', 'LLAMA-3.3-70B']):
             filtered_results[key] = value
 
-    print(filtered_results.keys())
     return filtered_results
 
 
