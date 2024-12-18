@@ -54,9 +54,7 @@ for file in os.listdir(bfi_dir):
         preds = []
         with open(os.path.join(bfi_dir, file), "r") as f:
             bfi_scores = json.load(f)
-            
             preds = [extract_bfi_scores(score) for score in bfi_scores]
-            print(preds)
 
         if len(preds) != gt_len:
             continue

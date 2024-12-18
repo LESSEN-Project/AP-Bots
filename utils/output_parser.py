@@ -36,8 +36,19 @@ def parse_cot_output(output: str) -> str:
 
 def extract_bfi_scores(input_str):
 
-    pattern = r'"([^"]+)"\s*:\s*{\s*"score"\s*:\s*(\d+)'
-    matches = re.findall(pattern, input_str)    
-    result = {trait: int(score) for trait, score in matches}
-    
-    return result
+    input_str = input_str.strip()
+    if input_str.startswith("```json"):
+        input_str = input_str[7:].strip()
+
+    if input_str.startswith("```"):
+        input_str = input_str[3:].strip()
+
+    if input_str.endswith("```"):
+        input_str = input_str[:-3].strip()
+        
+    try:
+        json_object = json.loads(input_str)
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e} in string: {input_str}")
+
+    return json_object
