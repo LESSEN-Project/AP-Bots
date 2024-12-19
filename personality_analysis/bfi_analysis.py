@@ -32,7 +32,6 @@ def load_bfi(bfi_file, experiment_keys):
 
     return up_exp, bfi_predictions
 
-
 args = get_args()
 dataset = parse_dataset(args.dataset)
 
@@ -51,24 +50,22 @@ print(f"Loaded {len(ground_truth)} ground truth samples")
 bfi_model="LLAMA-3.3-70B"
 bfi_file = os.path.join("personality_analysis", "files", "bfi_results", f"{bfi_model}_{dataset.tag}.json")
 up_bfi_results, exp_bfi_results = load_bfi(bfi_file, list(eval_results.keys()))
-# up_bfi_results = up_bfi_results.astype(int)
 
 for key in up_bfi_results.columns:
+
+    print(up_bfi_results[key].value_counts())
     print(f"Number of infinite values: {np.sum(np.isinf(up_bfi_results[key]))}")
     print(f"Number of NA values: {up_bfi_results[key].isna().sum()}")
     
-    # Fill NA values with mean
     if up_bfi_results[key].isna().any():
         up_bfi_results[key] = up_bfi_results[key].fillna(up_bfi_results[key].mean())
         
     up_bfi_results[key] = up_bfi_results[key].astype(int)
 
-# Create directory for saving plots
 visuals_dir = os.path.join("personality_analysis", "files", "visuals", "bfi_analysis")
 os.makedirs(visuals_dir, exist_ok=True)
 
 print("BFI summary for User profiles:")
-print(exp_bfi_results)
 for model_key in exp_bfi_results:
     for k_key in exp_bfi_results[model_key]:
 
