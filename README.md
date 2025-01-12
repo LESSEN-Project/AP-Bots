@@ -1,18 +1,9 @@
 # AP-Bots: Adaptive, Personalized Chatbots
 
-AP-Bots is a framework aimed to increase the user satisfaction with chatbots by offering personalized, adaptive responses. The framework processes customer sentiments, personality, and the context of the conversation to choose the best conversation style for the customer. The bot tailors its responses for the customer, and it can change its style if the customer emotional state gets negative. This repo contains all the works related to AP-Bots. 
-
-**Framework**
-
-<p align="center">
-  <img src="files/images/AP-Bots.jpg" width="75%">
-</p>
-  
-## Content
-
 - [Improving RAG for Personalization with Author Features and Contrastive Examples](#improving-rag-for-personalization-with-author-features-and-contrastive-examples)
   - [Running Experiments](#running-experiments)
   - [Evaluation](#evaluation)
+- [AP-Bots Framework](#ap-bots-framework)
 - [Requirements](#requirements)
 
 
@@ -57,6 +48,14 @@ python -m evaluation.eval -d dataset_name
 ```
 
 This command evaluates all results in the preds folder for the specified dataset and generates a CSV file in the evaluation directory.
+
+## AP-Bots Framework
+
+AP-Bots is a framework aimed to increase the user satisfaction with chatbots by offering personalized, adaptive responses. The framework processes customer sentiments, personality, and the context of the conversation to choose the best conversation style for the customer. The bot tailors its responses for the customer, and it can change its style if the customer emotional state gets negative.
+
+<p align="center">
+  <img src="files/images/AP-Bots.jpg" width="75%">
+</p>
 
 ## Requirements
 
