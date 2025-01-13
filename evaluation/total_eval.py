@@ -20,7 +20,7 @@ oai_get_batch_res(client)
 out_gts = dataset.get_gts()
 all_res = []
 models = []
-cols = ["model", "features", "retriever", "RS", "k"]
+cols = ["model", "features", "retriever", "RS", "k", "PS"]
 
 rouge = load("rouge")
 bleu = load("bleu")
@@ -39,7 +39,7 @@ for file in os.listdir(preds_dir):
             continue
 
         params = parse_filename(file, dataset.tag)
-        print(f"Model: {params['model']}, Retriever: {params['retriever']}, Features: {params['features']}, RS: {params['RS']}, K: {params['k']}")
+        print(f"Model: {params['model']}, Retriever: {params['retriever']}, Features: {params['features']}, RS: {params['RS']}, K: {params['k']}, PS: {params['PS']}")
 
         rouge_results = rouge.compute(predictions=preds, references=out_gts)
         bleu_results = bleu.compute(predictions=preds, references=[[gt] for gt in out_gts])

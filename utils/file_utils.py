@@ -29,15 +29,21 @@ def parse_filename(file, dataset_tag):
     else:
         params = file[len(dataset_tag)+1:].split("_")
 
-    k = re.findall(r'\((.*?)\)', params[-1])[0]
+    k = re.findall(r'\((.*?)\)', params[4])[0]
     retriever = params[2]
     features = params[1]
     if features != "None":
         features = ":".join(eval(features))
     model = params[0]
-    rs = re.findall(r'\((.*?)\)', params[-2])[0]
+    rs = re.findall(r'\((.*?)\)', params[3])[0]
 
-    return {"model": model, "retriever": retriever, "features": features, "RS": rs, "k": k}
+    if len(params) > 5:
+        ps = re.findall(r'\((.*?)\)', params[5])[0]
+
+    else:
+        ps = "regular"
+
+    return {"model": model, "retriever": retriever, "features": features, "RS": rs, "k": k, "PS": ps}
 
 def oai_get_or_create_file(client, filename):
 

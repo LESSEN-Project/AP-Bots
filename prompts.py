@@ -1,10 +1,10 @@
-def prepare_res_prompt(dataset, query, llm, examples, features=None, counter_examples=None, repetition_step=1):
+def prepare_res_prompt(dataset, query, llm, examples, features=None, counter_examples=None, repetition_step=1, prompt_style="regular"):
 
     if dataset.name == "lamp":
         init_prompt = get_lamp_prompts(dataset.num, repetition_step)
         
     elif dataset.name == "amazon":
-        init_prompt = amazon_prompt(repetition_step)
+        init_prompt = get_amazon_prompts(prompt_style)
     
     feat_values = ""
     if features:
@@ -34,9 +34,17 @@ def strip_all(text: str) -> str:
     return "\n".join(line.strip() for line in text.splitlines())    
 
 
-def amazon_prompt(repetition_step=1) -> str:
+def get_amazon_prompts(prompt_style: str) -> str:
+    amazon_prompts = {
+        "regular": amazon_prompt,
+        "react": amazon_react_prompt
+    }
+    return amazon_prompts.get(prompt_style, amazon_prompt)()
 
-    features = strip_all("""You are an Amazon customer that likes to write reviews for products. You will be provided a set of features to help you understand your writing style.
+
+def amazon_prompt() -> str:
+
+    return strip_all("""You are an Amazon customer that likes to write reviews for products. You will be provided a set of features to help you understand your writing style.
                      First feature you will receive is similar product-review pairs from your past reviews to remind you of your style:
                      <similarpairs>
                      {examples}
@@ -48,13 +56,9 @@ def amazon_prompt(repetition_step=1) -> str:
                      Finally, you will receive product-review pairs from other customers to help you distinguish your style from others.
                      <otherwriters>
                      {counter_examples}
-                     </otherwriters>""")
-    
-    instruction = """Using the features, generate the proper review. If you haven't received some of the features, only make use of the provided ones. Remember that ratings go from 1 to 5, 1 being the worst rating. Only output the review and nothing else."""
-    instruction = "\n".join([instruction] * repetition_step)
-    prompt = strip_all(f"{features}\n{instruction}\n")
-    
-    return prompt + """\nProduct: {query}\nReview:"""
+                     </otherwriters>
+                     Using the features, generate the proper review. If you haven't received some of the features, only make use of the provided ones. Remember that ratings go from 1 to 5, 1 being the worst rating. Only output the review and nothing else.
+                     Product: {query}\nReview:""")
 
 
 def amazon_BFI_analysis(text):
@@ -75,6 +79,40 @@ def amazon_BFI_analysis(text):
                        Respond in JSON format where each trait is a key, and the value is the corresponding score of the trait. Do not output anything besides the json.""")
     }]
 
+
+def amazon_react_prompt() -> str:
+
+    return strip_all("""You are an Amazon customer who frequently writes product reviews. You will be given several types of information to guide you:
+                        Similar Product-Review Pairs (Your Past Reviews)
+                        <similarpairs>
+                        {examples}
+                        </similarpairs>
+
+                        User-Specific Writing Features
+                        <features>
+                        {features}
+                        </features>
+
+                        Other Writers’ Reviews (Contrastive Examples)
+                        <otherwriters>
+                        {counter_examples}
+                        </otherwriters>
+
+                        Use any provided information to stay consistent with your established style and to differentiate yourself from other reviewers. If you do not receive some of these information, simply base your review on what is available. Remember that ratings range from 1 to 5, with 1 being the worst rating.
+                        
+                        Use the following format for your answer, upon receiving the product name and the rating you gave:
+
+                        <output>
+                        Thought (Analyze Context): Reflect on the product, the rating and the provided information.
+                        Action (First Draft): Write an initial version of the review.
+                        Thought (Refine): Reevaluate the draft, assess how much it reflects your style and use of grammar.
+                        Action (Revise): Adjust the review for stylistic alignment.
+                        Thought (Final Check): Confirm the review accurately reflects your style.
+                        Final Answer (Review): Provide the final review, under <review> tags.
+                        </output>
+
+                        Product: {query}""")
+                    
 
 def get_lamp_prompts(dataset_num: int, repetition_step) -> str:
 

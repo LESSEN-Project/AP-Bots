@@ -15,6 +15,7 @@ def get_args():
     parser.add_argument("-ce", "--counter_examples", default=None, type=int)
     parser.add_argument("-rs", "--repetition_step", default=1, type=int)
     parser.add_argument("-ob", "--openai_batch", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("-ps", "--prompt_style", default="regular", type=str)
 
     return parser.parse_args()
 
