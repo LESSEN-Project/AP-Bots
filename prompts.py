@@ -111,6 +111,8 @@ def amazon_react_prompt() -> str:
                         Final Answer (Review): Provide the final review, under <review> tags.
                         </output>
 
+                        Do not include the rating in the final review.
+
                         Product: {query}""")
                     
 

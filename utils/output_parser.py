@@ -52,3 +52,18 @@ def extract_bfi_scores(input_str):
         print(f"Error decoding JSON: {e} in string: {input_str}")
 
     return json_object
+
+def parse_react_output(text: str) -> str:
+
+    try:
+        start_tag = "<review>"
+        end_tag = "</review>"
+        start_idx = text.find(start_tag) + len(start_tag)
+        end_idx = text.find(end_tag)
+        if start_idx != -1 and end_idx != -1:
+            print(text[start_idx:end_idx].strip())
+            return text[start_idx:end_idx].strip()
+        return ""
+    except Exception as e:
+        print(f"Error parsing react output: {e}")
+        return ""
