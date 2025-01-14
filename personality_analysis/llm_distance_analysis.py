@@ -17,10 +17,6 @@ def analyze_distances(distances: List[float], model: str, k: int):
     """Analyze and plot the distribution of distances."""
     distances = np.array(distances)
 
-    # Create output directory if it doesn't exist
-    plot_dir = os.path.join("personality_analysis", "files", "visuals", "distance_distribution")
-    os.makedirs(plot_dir, exist_ok=True)
-
     # Calculate statistics
     print(f"\nAnalysis for {model} (k={k}):")
     print(f"Mean distance: {np.mean(distances):.4f}")
@@ -42,7 +38,7 @@ def analyze_distances(distances: List[float], model: str, k: int):
     }
 
 
-def analyze_sample_changes(k0_distances: List[float], k10_distances: List[float], model: str):
+def analyze_sample_changes(k0_distances: List[float], k10_distances: List[float], model: str, visuals_dir: str):
     """Analyze how individual samples change when k is increased from 0 to 10."""
 
     # Calculate per-sample changes (k10 - k0)
@@ -90,8 +86,10 @@ def analyze_sample_changes(k0_distances: List[float], k10_distances: List[float]
     # Points above the line got worse (k10 > k0)
     # Points below the line improved (k10 < k0)
 
-    plot_path = os.path.join("personality_analysis", "files", "visuals", "distance_distribution", f'scatter_{model}.png')
-    plt.savefig(plot_path)
+    plot_path = os.path.join(visuals_dir, "distance_distribution")
+    os.makedirs(plot_path, exist_ok=True)
+    
+    plt.savefig(os.path.join(plot_path, f'scatter_{model}.png'))
     plt.close()
 
     # Create histogram of changes
@@ -103,8 +101,7 @@ def analyze_sample_changes(k0_distances: List[float], k10_distances: List[float]
     plt.ylabel('Density')
     plt.legend()
 
-    plot_path = os.path.join("personality_analysis", "files", "visuals", "distance_distribution", f'changes_{model}.png')
-    plt.savefig(plot_path)
+    plt.savefig(os.path.join(plot_path, f'changes_{model}.png'))
     plt.close()
 
     return {
@@ -118,7 +115,7 @@ def analyze_sample_changes(k0_distances: List[float], k10_distances: List[float]
     }
 
 
-def compare_k_settings(model: str, k0_distances: List[float], k10_distances: List[float]):
+def compare_k_settings(model: str, k0_distances: List[float], k10_distances: List[float], visuals_dir: str):
     """Compare distance distributions between k=0 and k=10 settings."""
     k0_stats = analyze_distances(k0_distances, model, '0')
     k10_stats = analyze_distances(k10_distances, model, '10')
@@ -136,7 +133,7 @@ def compare_k_settings(model: str, k0_distances: List[float], k10_distances: Lis
     print(f"T-test p-value: {p_value:.4e}")
 
     # Analyze per-sample changes
-    sample_analysis = analyze_sample_changes(k0_distances, k10_distances, model)
+    sample_analysis = analyze_sample_changes(k0_distances, k10_distances, model, visuals_dir)
 
     # Plot comparison
     plt.figure(figsize=(12, 6))
@@ -154,8 +151,9 @@ def compare_k_settings(model: str, k0_distances: List[float], k10_distances: Lis
     plt.ylabel('Density')
     plt.legend()
 
-    plot_path = os.path.join("personality_analysis", "files", "visuals", "distance_distribution", f'comparison_{model}.png')
-    plt.savefig(plot_path)
+    plot_path = os.path.join(visuals_dir, "distance_distribution")
+    os.makedirs(plot_path, exist_ok=True)
+    plt.savefig(os.path.join(plot_path, f'comparison_{model}.png'))
     plt.close()
 
     return {
@@ -168,96 +166,8 @@ def compare_k_settings(model: str, k0_distances: List[float], k10_distances: Lis
     }
 
 
-def analyze_rouge_correlation(distances: List[float], rouge_scores: List[float], model: str, k: int):
-    """Analyze correlation between distances and ROUGE-L scores."""
-
-    # Calculate correlation
-    correlation, p_value = stats.pearsonr(distances, rouge_scores)
-
-    # Create scatter plot
-    plt.figure(figsize=(10, 6))
-    plt.scatter(distances, rouge_scores, alpha=0.5)
-
-    # Add trend line
-    z = np.polyfit(distances, rouge_scores, 1)
-    p = np.poly1d(z)
-    plt.plot(distances, p(distances), "r--", alpha=0.8)
-
-    plt.title(f'Distance vs ROUGE-L Score\n{model} (k={k})\nCorrelation: {correlation:.4f} (p={p_value:.4e})')
-    plt.xlabel('Distance')
-    plt.ylabel('ROUGE-L Score')
-
-    plot_path = os.path.join("personality_analysis", "files", "visuals", "rouge_correlation", f'correlation_{model}_k{k}.png')
-    os.makedirs(os.path.dirname(plot_path), exist_ok=True)
-    plt.savefig(plot_path)
-    plt.close()
-
-    return {
-        'correlation': correlation,
-        'p_value': p_value
-    }
-
-
-def analyze_rouge_improvement(k0_distances: List[float], k10_distances: List[float],
-                              k0_rouge: List[float], k10_rouge: List[float], model: str):
-    """Analyze how distance improvements correlate with ROUGE score improvements."""
-
-    # Calculate changes
-    distance_changes = np.array(k10_distances) - np.array(k0_distances)
-    rouge_changes = np.array(k10_rouge) - np.array(k0_rouge)
-
-    # Calculate correlation between changes
-    correlation, p_value = stats.pearsonr(distance_changes, rouge_changes)
-
-    # Create scatter plot
-    plt.figure(figsize=(10, 6))
-    plt.scatter(distance_changes, rouge_changes, alpha=0.5)
-
-    # Add trend line
-    z = np.polyfit(distance_changes, rouge_changes, 1)
-    p = np.poly1d(z)
-    plt.plot(distance_changes, p(distance_changes), "r--", alpha=0.8)
-
-    plt.title(f'Distance Change vs ROUGE-L Change\n{model}\nCorrelation: {correlation:.4f} (p={p_value:.4e})')
-    plt.xlabel('Change in Distance (K10 - K0)\nNegative = Distance Decreased')
-    plt.ylabel('Change in ROUGE-L Score (K10 - K0)\nPositive = Score Improved')
-
-    # Add quadrant labels
-    plt.axhline(y=0, color='k', linestyle='-', alpha=0.2)
-    plt.axvline(x=0, color='k', linestyle='-', alpha=0.2)
-
-    plot_path = os.path.join("personality_analysis", "files", "visuals", "rouge_correlation", f'improvement_correlation_{model}.png')
-    plt.savefig(plot_path)
-    plt.close()
-
-    # Calculate statistics for different quadrants
-    better_distance_better_rouge = np.sum((distance_changes < 0) & (rouge_changes > 0))
-    better_distance_worse_rouge = np.sum((distance_changes < 0) & (rouge_changes < 0))
-    worse_distance_better_rouge = np.sum((distance_changes > 0) & (rouge_changes > 0))
-    worse_distance_worse_rouge = np.sum((distance_changes > 0) & (rouge_changes < 0))
-
-    total_samples = len(distance_changes)
-
-    print(f"\nQuadrant Analysis for {model}:")
-    print(f"Better Distance & Better ROUGE: {better_distance_better_rouge} ({better_distance_better_rouge/total_samples*100:.1f}%)")
-    print(f"Better Distance & Worse ROUGE: {better_distance_worse_rouge} ({better_distance_worse_rouge/total_samples*100:.1f}%)")
-    print(f"Worse Distance & Better ROUGE: {worse_distance_better_rouge} ({worse_distance_better_rouge/total_samples*100:.1f}%)")
-    print(f"Worse Distance & Worse ROUGE: {worse_distance_worse_rouge} ({worse_distance_worse_rouge/total_samples*100:.1f}%)")
-
-    return {
-        'correlation': correlation,
-        'p_value': p_value,
-        'quadrants': {
-            'better_distance_better_rouge': better_distance_better_rouge,
-            'better_distance_worse_rouge': better_distance_worse_rouge,
-            'worse_distance_better_rouge': worse_distance_better_rouge,
-            'worse_distance_worse_rouge': worse_distance_worse_rouge
-        }
-    }
-
-
 def analyze_initial_distance_impact(k0_distances: List[float], k10_distances: List[float], 
-                                 k0_rouge: List[float], k10_rouge: List[float], model: str):
+                                 k0_rouge: List[float], k10_rouge: List[float], model: str, visuals_dir: str):
     """Analyze how initial distances affect improvements when k increases."""
     
     # Convert to numpy arrays
@@ -277,7 +187,6 @@ def analyze_initial_distance_impact(k0_distances: List[float], k10_distances: Li
     high_dist_mask = k0_distances >= high_dist_threshold
     low_dist_mask = k0_distances < high_dist_threshold
     
-    # Prepare data for both CSV and printing
     high_dist_stats = {
         'model': model,
         'group': 'high_distance',
@@ -350,9 +259,9 @@ def analyze_initial_distance_impact(k0_distances: List[float], k10_distances: Li
     plt.legend()
     
     plt.tight_layout()
-    plot_path = os.path.join("personality_analysis", "files", "visuals", "initial_distance_impact", f'initial_distance_impact_{model}.png')
-    os.makedirs(os.path.dirname(plot_path), exist_ok=True)
-    plt.savefig(plot_path)
+    plot_path = os.path.join(visuals_dir, "initial_distance_impact")
+    os.makedirs(plot_path, exist_ok=True)
+    plt.savefig(os.path.join(plot_path, f'{model}.png'))
     plt.close()
     
     return {
@@ -364,6 +273,9 @@ def main():
     # Parse arguments
     args = get_args()
     dataset = parse_dataset(args.dataset)
+
+    visuals_dir = os.path.join("personality_analysis", "files", "visuals", dataset.tag)
+    os.makedirs(visuals_dir, exist_ok=True)
     
     # Load evaluation results
     eval_file = os.path.join("evaluation", "files", "indv", f"eval_{args.dataset}.json")
@@ -380,7 +292,6 @@ def main():
     # Initialize retriever
     retriever = Retriever(dataset)
     
-    # Initialize results dictionary and list for CSV data
     comparison_results = {}
     csv_data = []
     
@@ -399,15 +310,12 @@ def main():
         k0_distances = retriever.calculate_one_to_one_distances(k0_preds, ground_truth)
         k10_distances = retriever.calculate_one_to_one_distances(k10_preds, ground_truth)
         
-        # Basic distance analysis
-        results = compare_k_settings(model, k0_distances, k10_distances)
+        results = compare_k_settings(model, k0_distances, k10_distances, visuals_dir)
         
-        # Analyze impact of initial distances
         impact_results = analyze_initial_distance_impact(
-            k0_distances, k10_distances, k0_rouge, k10_rouge, model
+            k0_distances, k10_distances, k0_rouge, k10_rouge, model, visuals_dir
         )
         
-        # Add results to CSV data
         csv_data.append(impact_results['high_dist_stats'])
         csv_data.append(impact_results['low_dist_stats'])
         
@@ -416,11 +324,10 @@ def main():
     
     # Save results to CSV
     df = pd.DataFrame(csv_data)
-    csv_path = os.path.join("personality_analysis", "files", "csv", "initial_distance_impact.csv")
+    csv_path = os.path.join("personality_analysis", "files", "csv", dataset.tag, "initial_distance_impact.csv")
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
     df.to_csv(csv_path, index=False, float_format='%.4f')
     
-    # Print summary of improvements and initial distance impact
     print("\nSummary of Improvements and Initial Distance Impact:")
     for model, results in comparison_results.items():
         print(f"\n{model}:")

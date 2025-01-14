@@ -167,8 +167,8 @@ pred_dir = os.path.join("files", "preds")
 predictions = load_predictions(pred_dir, list(eval_results.keys()))
 
 base_dir = os.path.join("personality_analysis", "files")
-visuals_dir = os.path.join("personality_analysis", "files", "visuals", "lexicon_analysis")
-csv_dir = os.path.join("personality_analysis", "files", "csv")
+visuals_dir = os.path.join("personality_analysis", "files", "visuals", "lexicon_analysis", dataset.tag)
+csv_dir = os.path.join("personality_analysis", "files", "csv", dataset.tag)
 
 os.makedirs(visuals_dir, exist_ok=True)
 os.makedirs(csv_dir, exist_ok=True)
@@ -200,7 +200,6 @@ for model_key in predictions:
             if os.path.exists(llm_df_path):
                 llm_df = pd.read_csv(llm_df_path)
             else:
-                # Calculate LLM features
                 llm_features = []
                 for i, llm_text in enumerate(llm_texts):
                     llm_feats = get_features(llm_text)
@@ -212,7 +211,6 @@ for model_key in predictions:
                 llm_df = pd.DataFrame(llm_features)
                 llm_df.to_csv(llm_df_path, index=False)
             
-            # Calculate differences
             differences_list = []
             for user_feats, llm_feats in zip(user_df.to_dict('records'), llm_df.to_dict('records')):
                 differences = calculate_feature_differences(user_feats, llm_feats)

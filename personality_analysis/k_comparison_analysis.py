@@ -504,8 +504,8 @@ def main():
     dataset = parse_dataset(args.dataset)
     
     # Ensure absolute paths
-    visuals_dir = os.path.join('personality_analysis', 'files', 'visuals')
-    csvs_dir = os.path.join('personality_analysis', 'files', 'csv')
+    visuals_dir = os.path.join('personality_analysis', 'files', 'visuals', dataset.tag)
+    csvs_dir = os.path.join('personality_analysis', 'files', 'csv', dataset.tag)
 
     os.makedirs(visuals_dir, exist_ok=True)
     os.makedirs(csvs_dir, exist_ok=True)
@@ -523,7 +523,7 @@ def main():
     plot_comparisons(results, visuals_dir)
     create_model_comparison_plot(results, visuals_dir)
     plot_score_changes(results, visuals_dir)
-    analyze_score_change_statistics(results, csvs_dir)  # Added this line
+    analyze_score_change_statistics(results, csvs_dir) 
 
 if __name__ == "__main__":
     main()
