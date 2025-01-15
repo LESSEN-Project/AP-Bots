@@ -16,3 +16,5 @@ lamp_preds/
 # Error and output files
 *.err
 *.out
+
+.python-version

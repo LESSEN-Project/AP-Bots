@@ -61,7 +61,6 @@ def parse_react_output(text: str) -> str:
         start_idx = text.find(start_tag) + len(start_tag)
         end_idx = text.find(end_tag)
         if start_idx != -1 and end_idx != -1:
-            print(text[start_idx:end_idx].strip())
             return text[start_idx:end_idx].strip()
         return ""
     except Exception as e:

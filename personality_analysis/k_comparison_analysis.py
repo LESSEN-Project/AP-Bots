@@ -9,7 +9,7 @@ import seaborn as sns
 from utils.argument_parser import get_args, parse_dataset
 
 
-def load_and_filter_data(file_path):
+def load_and_filter_data(file_path, k_range):
     """Load data and filter for specified conditions"""
     with open(file_path, 'r') as f:
         data = json.load(f)
@@ -19,6 +19,7 @@ def load_and_filter_data(file_path):
         'GEMMA': ['GEMMA-2-9B', 'GEMMA-2-27B'],
     }
     
+    print(data.keys())
     filtered_data = {}
     for exp_name, exp_data in data.items():
         params = exp_data['params']
@@ -27,16 +28,17 @@ def load_and_filter_data(file_path):
         
         if (params['features'] == "" and 
             params['RS'] == '1' and 
-            params['k'] in ['0', '10'] and
+            params['k'] in k_range and
             model_family in included_models and
             model in included_models[model_family]):
             filtered_data[exp_name] = exp_data
     
+    print(filtered_data.keys())
     return filtered_data
 
-def analyze_scores(filtered_data):
+def analyze_scores(filtered_data, k_range):
     """Analyze rouge scores for different k values and models"""
-    results = {k: {} for k in ['0', '10']}
+    results = {k: {} for k in k_range}
     
     for exp_name, exp_data in filtered_data.items():
         k = exp_data['params']['k']
@@ -57,8 +59,7 @@ def create_model_display_name(model):
     return f"{family}\n{size}"
 
 def analyze_score_transitions(results, output_dir):
-    """Analyze how scores change between k=0 and k=10"""
-    # First, create comprehensive statistics DataFrame
+
     stats_data = []
     bins = [-np.inf, 0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, np.inf]
     bin_labels = ['0', '0-0.05', '0.05-0.1', '0.1-0.15', '0.15-0.2', '0.2-0.25', '0.25-0.3', '>0.3']
@@ -112,31 +113,31 @@ def analyze_score_transitions(results, output_dir):
     # Prepare data for each model
     transition_stats = {}
     detailed_transitions = {}
+
+    max_k = [r for r in results.keys() if r != "0"][0]
     
     for model in results['0'].keys():
         scores_k0 = np.array(results['0'][model])
-        scores_k10 = np.array(results['10'][model])
+        scores_maxk = np.array(results[max_k][model])
         
         # Basic statistics
         total_samples = len(scores_k0)
-        improved = np.sum(scores_k10 > scores_k0)
-        worsened = np.sum(scores_k10 < scores_k0)
-        unchanged = np.sum(scores_k10 == scores_k0)
+        improved = np.sum(scores_maxk > scores_k0)
+        worsened = np.sum(scores_maxk < scores_k0)
+        unchanged = np.sum(scores_maxk == scores_k0)
         
-        # Calculate how many non-zero scores became zero and vice versa
-        became_zero = np.sum((scores_k0 > 0) & (scores_k10 == 0))
-        zero_to_nonzero = np.sum((scores_k0 == 0) & (scores_k10 > 0))
+        became_zero = np.sum((scores_k0 > 0) & (scores_maxk == 0))
+        zero_to_nonzero = np.sum((scores_k0 == 0) & (scores_maxk > 0))
         
-        # Create bins for k=0 and k=10
         bins_k0 = pd.cut(scores_k0, bins=bins, labels=bin_labels)
-        bins_k10 = pd.cut(scores_k10, bins=bins, labels=bin_labels)
+        bins_maxk = pd.cut(scores_maxk, bins=bins, labels=bin_labels)
         
         # Create transition DataFrame
         transitions_df = pd.DataFrame({
             'k0_bin': bins_k0,
-            'k10_bin': bins_k10,
+            'kmax_bin': bins_maxk,
             'k0_score': scores_k0,
-            'k10_score': scores_k10
+            'kmax_score': scores_maxk
         })
         
         # Calculate mean score change for each starting bin
@@ -145,11 +146,11 @@ def analyze_score_transitions(results, output_dir):
             bin_data = transitions_df[transitions_df['k0_bin'] == start_bin]
             if len(bin_data) > 0:
                 # Calculate where scores moved to
-                dest_counts = bin_data['k10_bin'].value_counts()
+                dest_counts = bin_data['kmax_bin'].value_counts()
                 total_in_bin = len(bin_data)
                 
                 # Calculate mean score change
-                mean_score_change = (bin_data['k10_score'] - bin_data['k0_score']).mean()
+                mean_score_change = (bin_data['kmax_score'] - bin_data['k0_score']).mean()
                 
                 # Get top 3 destinations
                 top_destinations = dest_counts.nlargest(3)
@@ -178,7 +179,7 @@ def analyze_score_transitions(results, output_dir):
         }
     
     # Print transition statistics and detailed transitions
-    print("\nScore Transition Analysis (k=0 → k=10):")
+    print(f"\nScore Transition Analysis (k=0 → k={max_k}):")
     for model in transition_stats.keys():
         stats = transition_stats[model]
         print(f"\n{model}:")
@@ -200,7 +201,7 @@ def analyze_score_transitions(results, output_dir):
         detailed_transitions[model].to_csv(csv_filename, index=False)
         print(f"Saved transition details to: {csv_filename}")
 
-def plot_comparisons(results, output_dir):
+def plot_comparisons(results, output_dir, k_range):
     """Create plots comparing all models"""    
 
     plot_data = []
@@ -211,7 +212,7 @@ def plot_comparisons(results, output_dir):
             plot_data.extend([(score, k, display_name) for score in scores])
     
     df = pd.DataFrame(plot_data, columns=['score', 'k', 'model'])
-    df['k'] = pd.Categorical(df['k'], categories=['0', '10'], ordered=True)
+    df['k'] = pd.Categorical(df['k'], categories=k_range, ordered=True)
     
     # Set style
     sns.set_style("whitegrid")
@@ -219,7 +220,7 @@ def plot_comparisons(results, output_dir):
     # Box plot for all models
     plt.figure(figsize=(12, 6))
     sns.boxplot(data=df, x='model', y='score', hue='k', 
-                hue_order=['0', '10'],
+                hue_order=k_range,
                 palette='Set2')
     plt.title('Rouge-L Score Distribution by Model and k')
     plt.xticks(rotation=0)
@@ -233,7 +234,7 @@ def plot_comparisons(results, output_dir):
     # Violin plot
     plt.figure(figsize=(12, 6))
     sns.violinplot(data=df, x='model', y='score', hue='k',
-                  hue_order=['0', '10'],
+                  hue_order=k_range,
                   palette='Set2')
     plt.title('Rouge-L Score Distribution (Violin Plot)')
     plt.xticks(rotation=0)
@@ -251,7 +252,7 @@ def plot_comparisons(results, output_dir):
     ).reset_index()
     
     sns.barplot(data=zero_scores, x='model', y='score', hue='k',
-                hue_order=['0', '10'],
+                hue_order=k_range,
                 palette='Set2')
     plt.title('Percentage of Zero Scores by Model and k')
     plt.xticks(rotation=0)
@@ -282,7 +283,7 @@ def plot_comparisons(results, output_dir):
     dist_data['percentage'] = dist_data.groupby(['model', 'k'])['count'].transform(lambda x: x / x.sum() * 100)
     
     # Create distribution plot for each k value
-    for k_val in ['0', '10']:
+    for k_val in k_range:
         plt.figure(figsize=(14, 7))
         k_data = dist_data[dist_data['k'] == k_val]
         
@@ -303,16 +304,8 @@ def plot_comparisons(results, output_dir):
         plt.close()
 
 def create_model_comparison_plot(results, output_dir):
-    """Create a detailed comparison of score distributions for specific models."""
-    # Print available models for debugging
-    print("\nAvailable models in results:")
-    for k in sorted(results.keys()):
-        print(f"k={k}:")
-        print(sorted(results[k].keys()))
     
-    # Define models to compare
-    models_to_compare = ['GEMMA-2-9B', 'GEMMA-2-27B', 'LLAMA-3.1-70B', 'LLAMA-3.1-8B']
-    
+    # Define models to compare    
     # Set up the figure with two rows and two columns
     fig = plt.figure(figsize=(15, 12))
     
@@ -322,25 +315,28 @@ def create_model_comparison_plot(results, output_dir):
     
     # Colors for k=0 and k=10
     colors = ['#1f77b4', '#ff7f0e']
+
+    max_k = [r for r in results.keys() if r != "0"][0]    
+    models_to_compare = list(results['0'].keys())
     
     # Process each model
     for idx, model in enumerate(models_to_compare):
 
         scores_k0 = np.array(results['0'].get(model, []))
-        scores_k10 = np.array(results['10'].get(model, []))
+        scores_maxk = np.array(results[max_k].get(model, []))
         
         ax = fig.add_subplot(2, 2, idx + 1)
         
         hist_k0, _ = np.histogram(scores_k0, bins=bins)
-        hist_k10, _ = np.histogram(scores_k10, bins=bins)
+        hist_maxk, _ = np.histogram(scores_maxk, bins=bins)
         
         hist_k0 = hist_k0 / len(scores_k0) * 100
-        hist_k10 = hist_k10 / len(scores_k10) * 100
+        hist_maxk = hist_maxk / len(scores_maxk) * 100
         
         x = np.arange(len(bin_labels))
         width = 0.35
         ax.bar(x - width/2, hist_k0, width, label='k=0', color=colors[0])
-        ax.bar(x + width/2, hist_k10, width, label='k=10', color=colors[1])
+        ax.bar(x + width/2, hist_maxk, width, label=f'k={max_k}', color=colors[1])
         
         ax.set_title(f'{model}\nScore Distribution', pad=10)
         ax.set_xlabel('Score Range')
@@ -363,20 +359,18 @@ def create_model_comparison_plot(results, output_dir):
     plt.close()
 
 def plot_score_changes(results, output_dir):
-    """
-    Create a bar plot showing the number of samples with increased/decreased ROUGE scores
-    when k is increased from 0 to 10 for each model.
-    """
+
     models = list(results['0'].keys())
+    max_k = [r for r in results.keys() if r != "0"][0]   
     increased = []
     decreased = []
     
     for model in models:
         k0_scores = np.array(results['0'][model])
-        k10_scores = np.array(results['10'][model])
+        kmax_scores = np.array(results[max_k][model])
         
         # Calculate differences
-        diff = k10_scores - k0_scores
+        diff = kmax_scores - k0_scores
         
         # Separate increases and decreases
         increases = diff[diff > 0]
@@ -395,7 +389,7 @@ def plot_score_changes(results, output_dir):
     
     # Customize plot
     ax.set_ylabel('Number of Samples')
-    ax.set_title('Changes in ROUGE Scores (k=0 to k=10)')
+    ax.set_title(f'Changes in ROUGE Scores (k=0 to k={max_k})')
     ax.set_xticks(x)
     ax.set_xticklabels([create_model_display_name(model) for model in models])
     ax.legend()
@@ -423,13 +417,14 @@ def analyze_score_change_statistics(results, output_dir):
     Saves results to a CSV file and returns a DataFrame with the statistics.
     """
     stats_data = []
+    max_k = [r for r in results.keys() if r != "0"][0]   
     
     for model in results['0'].keys():
         k0_scores = np.array(results['0'][model])
-        k10_scores = np.array(results['10'][model])
+        kmax_scores = np.array(results[max_k][model])
         
         # Calculate differences
-        diff = k10_scores - k0_scores
+        diff = kmax_scores - k0_scores
         
         # Separate increases and decreases
         increases = diff[diff > 0]
@@ -487,7 +482,7 @@ def analyze_score_change_statistics(results, output_dir):
     df.to_csv(csv_path, index=False, float_format='%.4f')
     
     # Print summary to console
-    print("\nROUGE Score Change Statistics (k=0 to k=10):")
+    print(f"\nROUGE Score Change Statistics (k=0 to k={max_k}):")
     print("=" * 80)
     for _, row in df.iterrows():
         model_name = create_model_display_name(row['Model']).replace('\n', ' ')
@@ -513,14 +508,15 @@ def main():
     # Construct input file path with absolute path
     input_file = os.path.join('evaluation', 'files', 'indv', f'eval_{dataset.tag}.json')
     
-    filtered_data = load_and_filter_data(input_file)
+    k_range =  ["0", "7"]
+    filtered_data = load_and_filter_data(input_file, k_range)
     print(f"Loaded {len(filtered_data)} filtered experiments")
     
-    results = analyze_scores(filtered_data)
+    results = analyze_scores(filtered_data, k_range)
     
     # Generate all analyses and plots
     analyze_score_transitions(results, csvs_dir)
-    plot_comparisons(results, visuals_dir)
+    plot_comparisons(results, visuals_dir, k_range)
     create_model_comparison_plot(results, visuals_dir)
     plot_score_changes(results, visuals_dir)
     analyze_score_change_statistics(results, csvs_dir) 
