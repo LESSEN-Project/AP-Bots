@@ -32,7 +32,7 @@ def load_eval_results(eval_file_path: str, k_range: list) -> Dict[str, Any]:
     return filtered_results
 
 
-def load_predictions(pred_dir: str, experiment_keys: List[str]) -> Dict[str, Dict[int, List[str]]]:
+def load_predictions(pred_dir: str, experiment_keys: List[str], k_max: int) -> Dict[str, Dict[int, List[str]]]:
     """Load predictions and organize them by model and k value."""
     predictions = defaultdict(dict)
 
@@ -49,9 +49,8 @@ def load_predictions(pred_dir: str, experiment_keys: List[str]) -> Dict[str, Dic
                         preds.append(item['output'])
                 predictions[model_name][k] = preds
 
-    # Keep only models that have both k=0 and k=10
     return {model: k_preds for model, k_preds in predictions.items()
-            if '0' in k_preds and '10' in k_preds}
+            if '0' in k_preds and k_max in k_preds}
 
 
 def get_exp_eval_results(eval_results, model_key, k_key, metric="rougeL"):

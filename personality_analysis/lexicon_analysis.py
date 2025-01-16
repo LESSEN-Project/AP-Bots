@@ -155,7 +155,8 @@ def plot_feature_differences(user_df, llm_df, model_key, k_key, output_dir):
     plt.close()
 
 
-k_range =  ["0", "10"]
+k_range =  ["0", "50"]
+k_max = max(k_range)
 args = get_args()
 dataset = parse_dataset(args.dataset)
 
@@ -165,7 +166,7 @@ eval_file = os.path.join("evaluation", "files", "indv", f"eval_{args.dataset}.js
 eval_results = load_eval_results(eval_file, k_range)
 
 pred_dir = os.path.join("files", "preds")
-predictions = load_predictions(pred_dir, list(eval_results.keys()))
+predictions = load_predictions(pred_dir, list(eval_results.keys()), k_max)
 
 base_dir = os.path.join("personality_analysis", "files")
 visuals_dir = os.path.join("personality_analysis", "files", "visuals", dataset.tag, "lexicon_analysis")

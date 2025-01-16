@@ -19,7 +19,6 @@ def load_and_filter_data(file_path, k_range):
         'GEMMA': ['GEMMA-2-9B', 'GEMMA-2-27B'],
     }
     
-    print(data.keys())
     filtered_data = {}
     for exp_name, exp_data in data.items():
         params = exp_data['params']
@@ -508,7 +507,7 @@ def main():
     # Construct input file path with absolute path
     input_file = os.path.join('evaluation', 'files', 'indv', f'eval_{dataset.tag}.json')
     
-    k_range =  ["0", "7"]
+    k_range =  ["0", "50"]
     filtered_data = load_and_filter_data(input_file, k_range)
     print(f"Loaded {len(filtered_data)} filtered experiments")
     
