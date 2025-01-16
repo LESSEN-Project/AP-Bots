@@ -50,13 +50,13 @@ def parse_args():
 
     _, retr_texts, retr_gts = dataset.get_retr_data()
     if args.top_k == -1:
-        k = get_k(retr_texts if dataset.name == "lamp" else retr_gts)
+        k = get_k(retr_texts if dataset.name == "lamp" else retr_gts, dataset.name)
     else:
         k = args.top_k
 
     return args, dataset, final_feature_list, k
 
-def get_k(retr_texts):
+def get_k(retr_texts, dataset_name):
 
     mean = []
     for retr_text in retr_texts:
@@ -65,4 +65,7 @@ def get_k(retr_texts):
     if mean < 50:
         return 50
     else:
-        return 10
+        if dataset_name == "amazon":
+            return 10
+        else:
+            return 7

@@ -1,0 +1,9 @@
+model,group,threshold,num_samples,mean_initial_distance,mean_distance_change,mean_rouge_change,num_rouge_improved,num_rouge_worsened,pct_rouge_improved,pct_rouge_worsened
+GEMMA-2-27B,high_distance,0.5964,482,0.6693,-0.1137,0.0834,242,73,50.2075,15.1452
+GEMMA-2-27B,low_distance,0.5964,1443,0.4395,-0.0543,0.0666,804,381,55.7173,26.4033
+GEMMA-2-9B,high_distance,0.6106,482,0.6795,-0.1008,0.0653,216,71,44.8133,14.7303
+GEMMA-2-9B,low_distance,0.6106,1443,0.4442,-0.0469,0.0610,752,376,52.1137,26.0568
+LLAMA-3.1-8B,high_distance,0.6480,482,0.7103,-0.1536,0.0952,253,62,52.4896,12.8631
+LLAMA-3.1-8B,low_distance,0.6480,1443,0.4842,-0.0610,0.0625,788,443,54.6085,30.6999
+LLAMA-3.3-70B,high_distance,0.6168,482,0.6864,-0.1313,0.0803,242,96,50.2075,19.9170
+LLAMA-3.3-70B,low_distance,0.6168,1443,0.4552,-0.0654,0.0680,812,422,56.2717,29.2446

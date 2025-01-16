@@ -507,7 +507,7 @@ def main():
     # Construct input file path with absolute path
     input_file = os.path.join('evaluation', 'files', 'indv', f'eval_{dataset.tag}.json')
     
-    k_range =  ["0", "50"]
+    k_range =  ["0", "10"]
     filtered_data = load_and_filter_data(input_file, k_range)
     print(f"Loaded {len(filtered_data)} filtered experiments")
     
