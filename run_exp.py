@@ -47,7 +47,11 @@ sys.stdout.flush()
 
 for model_name in LLMs:
 
-    exp_name = f"{dataset.tag}_{model_name}_{final_feature_list}_{args.retriever}_RS({args.repetition_step})_K({k})_PS({args.prompt_style})"
+    exp_name = f"{dataset.tag}_{model_name}_{final_feature_list}_{args.retriever}_RS({args.repetition_step})_K({k})"
+
+    if args.prompt_style == "react":
+        exp_name = f"{exp_name}_PS({args.prompt_style})"
+
     out_path = os.path.join(pred_path, f"{exp_name}.json")
 
     if os.path.exists(out_path):
