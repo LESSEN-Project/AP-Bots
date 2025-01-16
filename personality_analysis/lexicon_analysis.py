@@ -155,19 +155,20 @@ def plot_feature_differences(user_df, llm_df, model_key, k_key, output_dir):
     plt.close()
 
 
+k_range =  ["0", "10"]
 args = get_args()
 dataset = parse_dataset(args.dataset)
 
 _, _, retr_gts = dataset.get_retr_data()
 
 eval_file = os.path.join("evaluation", "files", "indv", f"eval_{args.dataset}.json")
-eval_results = load_eval_results(eval_file)
+eval_results = load_eval_results(eval_file, k_range)
 
 pred_dir = os.path.join("files", "preds")
 predictions = load_predictions(pred_dir, list(eval_results.keys()))
 
 base_dir = os.path.join("personality_analysis", "files")
-visuals_dir = os.path.join("personality_analysis", "files", "visuals", "lexicon_analysis", dataset.tag)
+visuals_dir = os.path.join("personality_analysis", "files", "visuals", dataset.tag, "lexicon_analysis")
 csv_dir = os.path.join("personality_analysis", "files", "csv", dataset.tag)
 
 os.makedirs(visuals_dir, exist_ok=True)
@@ -190,7 +191,7 @@ else:
     user_df.to_csv(user_df_path, index=False)
 
 for model_key in predictions:
-    for k_key in ['0', '10']:
+    for k_key in k_range:
         if k_key in predictions[model_key]:
             print(f"\nAnalyzing features for {model_key} (k={k_key})...")
 
@@ -234,7 +235,6 @@ for model_key in predictions:
                     print(f"Feature: {feature}")
                     print("  Not enough data for statistical tests.\n")
 
-            # Create visualization of feature differences
             plot_feature_differences(user_df, llm_df, model_key, k_key, visuals_dir)
 
-            print(f"Analysis completed for {model_key} k={k_key}. Check CSV files and 'plots' directory for results.")
+            print(f"Analysis completed for {model_key} k={k_key}.")

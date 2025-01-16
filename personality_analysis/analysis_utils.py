@@ -13,7 +13,7 @@ def get_model_and_k(exp_key: str) -> Tuple[str, int]:
     return model_name, k
 
 
-def load_eval_results(eval_file_path: str) -> Dict[str, Any]:
+def load_eval_results(eval_file_path: str, k_range: list) -> Dict[str, Any]:
     """Load and filter evaluation results based on specific parameters."""
     with open(eval_file_path, 'r') as f:
         eval_data = json.load(f)
@@ -25,7 +25,7 @@ def load_eval_results(eval_file_path: str) -> Dict[str, Any]:
         if (params.get('RS') == '1' and
             params.get('features') == "" and
             params.get('retriever') == "contriever" and
-            params.get('k') in ['0', '10'] and
+            params.get('k') in k_range and
             params.get('model') in ['GEMMA-2-9B', 'GEMMA-2-27B', 'LLAMA-3.1-8B', 'LLAMA-3.3-70B']):
             filtered_results[key] = value
 

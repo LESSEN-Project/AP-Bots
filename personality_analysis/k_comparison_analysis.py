@@ -15,7 +15,7 @@ def load_and_filter_data(file_path, k_range):
         data = json.load(f)
     
     included_models = {
-        'LLAMA': ['LLAMA-3.1-8B', 'LLAMA-3.1-70B'],
+        'LLAMA': ['LLAMA-3.1-8B', 'LLAMA-3.3-70B'],
         'GEMMA': ['GEMMA-2-9B', 'GEMMA-2-27B'],
     }
     

@@ -17,7 +17,6 @@ def analyze_distances(distances: List[float], model: str, k: int):
     """Analyze and plot the distribution of distances."""
     distances = np.array(distances)
 
-    # Calculate statistics
     print(f"\nAnalysis for {model} (k={k}):")
     print(f"Mean distance: {np.mean(distances):.4f}")
     print(f"Median distance: {np.median(distances):.4f}")
@@ -38,29 +37,22 @@ def analyze_distances(distances: List[float], model: str, k: int):
     }
 
 
-def analyze_sample_changes(k0_distances: List[float], k10_distances: List[float], model: str, visuals_dir: str):
-    """Analyze how individual samples change when k is increased from 0 to 10."""
+def analyze_sample_changes(k0_distances: List[float], kmax_distances: List[float], k_max, model: str, visuals_dir: str):
 
-    # Calculate per-sample changes (k10 - k0)
-    # Negative change means improvement (distance decreased)
-    changes = np.array(k10_distances) - np.array(k0_distances)
+    changes = np.array(kmax_distances) - np.array(k0_distances)
 
-    # Categorize changes
-    improved = changes < 0  # Distance decreased (improved)
-    worsened = changes > 0  # Distance increased (worsened)
-    unchanged = np.isclose(changes, 0, atol=1e-6)  # Distance stayed same
+    improved = changes < 0 
+    worsened = changes > 0 
+    unchanged = np.isclose(changes, 0, atol=1e-6) 
 
-    # Calculate statistics
     num_samples = len(changes)
     num_improved = np.sum(improved)
     num_worsened = np.sum(worsened)
     num_unchanged = np.sum(unchanged)
 
-    # Calculate average improvement for different categories
-    avg_improvement = -np.mean(changes[improved]) if any(improved) else 0  # Make positive for reporting
+    avg_improvement = -np.mean(changes[improved]) if any(improved) else 0  
     avg_deterioration = np.mean(changes[worsened]) if any(worsened) else 0
 
-    # Print analysis
     print(f"\nPer-sample analysis for {model}:")
     print(f"Total samples: {num_samples}")
     print(f"Improved samples: {num_improved} ({(num_improved/num_samples)*100:.1f}%)")
@@ -69,22 +61,17 @@ def analyze_sample_changes(k0_distances: List[float], k10_distances: List[float]
     print(f"Average distance reduction when improved: {avg_improvement:.4f}")
     print(f"Average distance increase when worsened: {avg_deterioration:.4f}")
 
-    # Create scatter plot of k=0 vs k=10 distances
     plt.figure(figsize=(10, 10))
-    plt.scatter(k0_distances, k10_distances, alpha=0.5)
+    plt.scatter(k0_distances, kmax_distances, alpha=0.5)
 
-    # Add diagonal line (y=x)
-    min_val = min(min(k0_distances), min(k10_distances))
-    max_val = max(max(k0_distances), max(k10_distances))
+    min_val = min(min(k0_distances), min(kmax_distances))
+    max_val = max(max(k0_distances), max(kmax_distances))
     plt.plot([min_val, max_val], [min_val, max_val], 'r--', label='No change line')
 
-    plt.title(f'K=0 vs K=10 Distances\n{model}')
+    plt.title(f'K=0 vs K={k_max} Distances\n{model}')
     plt.xlabel('Distance with K=0')
-    plt.ylabel('Distance with K=10')
+    plt.ylabel(f'Distance with K={k_max}')
     plt.legend()
-
-    # Points above the line got worse (k10 > k0)
-    # Points below the line improved (k10 < k0)
 
     plot_path = os.path.join(visuals_dir, "distance_distribution")
     os.makedirs(plot_path, exist_ok=True)
@@ -92,7 +79,6 @@ def analyze_sample_changes(k0_distances: List[float], k10_distances: List[float]
     plt.savefig(os.path.join(plot_path, f'scatter_{model}.png'))
     plt.close()
 
-    # Create histogram of changes
     plt.figure(figsize=(10, 6))
     plt.hist(changes, bins=50, density=True)
     plt.axvline(0, color='r', linestyle='--', label='No change')
@@ -115,36 +101,36 @@ def analyze_sample_changes(k0_distances: List[float], k10_distances: List[float]
     }
 
 
-def compare_k_settings(model: str, k0_distances: List[float], k10_distances: List[float], visuals_dir: str):
+def compare_k_settings(model: str, k0_distances: List[float], kmax_distances: List[float], k_max, visuals_dir: str):
     """Compare distance distributions between k=0 and k=10 settings."""
     k0_stats = analyze_distances(k0_distances, model, '0')
-    k10_stats = analyze_distances(k10_distances, model, '10')
+    kmax_stats = analyze_distances(kmax_distances, model, '10')
 
     # Calculate improvement metrics
-    mean_improvement = k0_stats['mean'] - k10_stats['mean']
-    median_improvement = k0_stats['median'] - k10_stats['median']
+    mean_improvement = k0_stats['mean'] - kmax_stats['mean']
+    median_improvement = k0_stats['median'] - kmax_stats['median']
 
     print(f"\nImprovements for {model}:")
     print(f"Mean distance reduction: {mean_improvement:.4f}")
     print(f"Median distance reduction: {median_improvement:.4f}")
 
     # Perform statistical test
-    t_stat, p_value = stats.ttest_ind(k0_distances, k10_distances)
+    t_stat, p_value = stats.ttest_ind(k0_distances, kmax_distances)
     print(f"T-test p-value: {p_value:.4e}")
 
     # Analyze per-sample changes
-    sample_analysis = analyze_sample_changes(k0_distances, k10_distances, model, visuals_dir)
+    sample_analysis = analyze_sample_changes(k0_distances, kmax_distances, k_max, model, visuals_dir)
 
     # Plot comparison
     plt.figure(figsize=(12, 6))
 
     # Plot histograms
     plt.hist(k0_distances, bins=50, alpha=0.5, label=f'k=0 (mean={k0_stats["mean"]:.4f})', density=True)
-    plt.hist(k10_distances, bins=50, alpha=0.5, label=f'k=10 (mean={k10_stats["mean"]:.4f})', density=True)
+    plt.hist(kmax_distances, bins=50, alpha=0.5, label=f'k={k_max} (mean={kmax_stats["mean"]:.4f})', density=True)
 
     # Add vertical lines for means
     plt.axvline(k0_stats['mean'], color='blue', linestyle='dashed', alpha=0.5)
-    plt.axvline(k10_stats['mean'], color='orange', linestyle='dashed', alpha=0.5)
+    plt.axvline(kmax_stats['mean'], color='orange', linestyle='dashed', alpha=0.5)
 
     plt.title(f'Distance Distribution Comparison\n{model}')
     plt.xlabel('Distance (1 - cosine similarity)')
@@ -158,7 +144,7 @@ def compare_k_settings(model: str, k0_distances: List[float], k10_distances: Lis
 
     return {
         'k0_stats': k0_stats,
-        'k10_stats': k10_stats,
+        f'k{k_max}_stats': kmax_stats,
         'mean_improvement': mean_improvement,
         'median_improvement': median_improvement,
         'p_value': p_value,
@@ -166,24 +152,22 @@ def compare_k_settings(model: str, k0_distances: List[float], k10_distances: Lis
     }
 
 
-def analyze_initial_distance_impact(k0_distances: List[float], k10_distances: List[float], 
-                                 k0_rouge: List[float], k10_rouge: List[float], model: str, visuals_dir: str):
+def analyze_initial_distance_impact(k0_distances: List[float], kmax_distances: List[float], 
+                                 k0_rouge: List[float], kmax_rouge: List[float], k_max, model: str, visuals_dir: str):
     """Analyze how initial distances affect improvements when k increases."""
     
     # Convert to numpy arrays
     k0_distances = np.array(k0_distances)
-    k10_distances = np.array(k10_distances)
+    k10_distances = np.array(kmax_distances)
     k0_rouge = np.array(k0_rouge)
-    k10_rouge = np.array(k10_rouge)
+    k10_rouge = np.array(kmax_rouge)
     
     # Calculate changes
-    distance_changes = k10_distances - k0_distances
-    rouge_changes = k10_rouge - k0_rouge
+    distance_changes = kmax_distances - k0_distances
+    rouge_changes = kmax_rouge - k0_rouge
     
-    # Define high distance threshold as 75th percentile of initial distances
     high_dist_threshold = np.percentile(k0_distances, 75)
     
-    # Split samples into high and low initial distance groups
     high_dist_mask = k0_distances >= high_dist_threshold
     low_dist_mask = k0_distances < high_dist_threshold
     
@@ -244,7 +228,7 @@ def analyze_initial_distance_impact(k0_distances: List[float], k10_distances: Li
     plt.axvline(high_dist_threshold, color='r', linestyle='--', label='75th percentile')
     plt.axhline(0, color='k', linestyle='-', alpha=0.2)
     plt.xlabel('Initial Distance (k=0)')
-    plt.ylabel('Change in Distance (k10 - k0)')
+    plt.ylabel(f'Change in Distance (k{k_max} - k0)')
     plt.title('Initial Distance vs Distance Change')
     plt.legend()
     
@@ -254,7 +238,7 @@ def analyze_initial_distance_impact(k0_distances: List[float], k10_distances: Li
     plt.axvline(high_dist_threshold, color='r', linestyle='--', label='75th percentile')
     plt.axhline(0, color='k', linestyle='-', alpha=0.2)
     plt.xlabel('Initial Distance (k=0)')
-    plt.ylabel('Change in ROUGE-L (k10 - k0)')
+    plt.ylabel(f'Change in ROUGE-L (k{k_max} - k0)')
     plt.title('Initial Distance vs ROUGE Change')
     plt.legend()
     
@@ -270,7 +254,8 @@ def analyze_initial_distance_impact(k0_distances: List[float], k10_distances: Li
     }
 
 def main():
-    # Parse arguments
+
+    k_range =  ["0", "10"]
     args = get_args()
     dataset = parse_dataset(args.dataset)
 
@@ -279,7 +264,7 @@ def main():
     
     # Load evaluation results
     eval_file = os.path.join("evaluation", "files", "indv", f"eval_{args.dataset}.json")
-    eval_results = load_eval_results(eval_file)
+    eval_results = load_eval_results(eval_file, k_range)
     
     # Load predictions
     pred_dir = os.path.join("files", "preds")
@@ -297,23 +282,23 @@ def main():
     
     for model, k_preds in predictions.items():
         print(f"\nAnalyzing model: {model}")
+
+        k_max = [k for k in k_preds.keys() if k != "0"][0]
         
-        # Get predictions for k=0 and k=10
         k0_preds = k_preds['0']
-        k10_preds = k_preds['10']
+        kmax_preds = k_preds[k_max]
         
-        # Get ROUGE-L scores for k=0 and k=10
         k0_rouge = get_exp_eval_results(eval_results, model, "0")
-        k10_rouge = get_exp_eval_results(eval_results, model, "10")
+        kmax_rouge = get_exp_eval_results(eval_results, model, k_max)
         
         # Calculate distances
         k0_distances = retriever.calculate_one_to_one_distances(k0_preds, ground_truth)
-        k10_distances = retriever.calculate_one_to_one_distances(k10_preds, ground_truth)
+        kmax_distances = retriever.calculate_one_to_one_distances(kmax_preds, ground_truth)
         
-        results = compare_k_settings(model, k0_distances, k10_distances, visuals_dir)
+        results = compare_k_settings(model, k0_distances, kmax_distances, k_max, visuals_dir)
         
         impact_results = analyze_initial_distance_impact(
-            k0_distances, k10_distances, k0_rouge, k10_rouge, model, visuals_dir
+            k0_distances, kmax_distances, k0_rouge, kmax_rouge, k_max, model, visuals_dir
         )
         
         csv_data.append(impact_results['high_dist_stats'])
