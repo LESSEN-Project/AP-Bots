@@ -1,0 +1,5 @@
+Model,Total_Samples,Increased_Count,Decreased_Count,No_Change_Count,Mean_Increase,Mean_Decrease,Median_Increase,Median_Decrease,Max_Increase,Max_Decrease,Increase_25th_Percentile,Increase_75th_Percentile,Increase_90th_Percentile,Decrease_10th_Percentile,Decrease_25th_Percentile,Decrease_75th_Percentile
+GEMMA-2-27B,1500,651,399,450,0.1164,-0.1067,0.0850,-0.0833,0.7000,-0.5778,0.0352,0.1603,0.2684,-0.2405,-0.1448,-0.0350
+GEMMA-2-9B,1500,654,397,449,0.1188,-0.1179,0.0886,-0.0866,0.6444,-0.7462,0.0369,0.1699,0.2601,-0.2595,-0.1595,-0.0414
+LLAMA-3.1-8B,1500,912,513,75,0.1631,-0.1235,0.1278,-0.0980,0.7273,-0.6444,0.0608,0.2333,0.3438,-0.2638,-0.1818,-0.0456
+LLAMA-3.3-70B,1500,686,501,313,0.1304,-0.1160,0.0987,-0.0870,0.7143,-0.5200,0.0457,0.1891,0.2856,-0.2582,-0.1667,-0.0373

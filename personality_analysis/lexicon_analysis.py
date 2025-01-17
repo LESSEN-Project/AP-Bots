@@ -155,7 +155,7 @@ def plot_feature_differences(user_df, llm_df, model_key, k_key, output_dir):
     plt.close()
 
 
-k_range =  ["0", "50"]
+k_range =  ["0", "10"]
 k_max = max(k_range)
 args = get_args()
 dataset = parse_dataset(args.dataset)

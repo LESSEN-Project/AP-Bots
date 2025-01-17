@@ -255,7 +255,7 @@ def analyze_initial_distance_impact(k0_distances: List[float], kmax_distances: L
 
 def main():
 
-    k_range =  ["0", "50"]
+    k_range =  ["0", "10"]
     k_max = max(k_range)
     args = get_args()
     dataset = parse_dataset(args.dataset)
