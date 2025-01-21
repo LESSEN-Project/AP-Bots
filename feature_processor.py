@@ -15,7 +15,9 @@ from utils.output_parser import extract_bfi_scores
 
 class FeatureProcessor():
 
-    def __init__(self) -> None:
+    def __init__(self, dataset) -> None:
+        
+        self.dataset = dataset
         nltk.download('punkt', quiet=True)      
         nltk.download('stopwords', quiet=True)  
         nltk.download('averaged_perceptron_tagger', quiet=True)
@@ -216,8 +218,11 @@ class FeatureProcessor():
         with open(file_path, "w") as f:
             json.dump(obj, f)
 
-    def get_all_features(self, dataset, feature_list, retr_texts, retr_gts):
-        file_name = f"{dataset}_feats"
+    def get_all_features(self, feature_list):
+
+        file_name = f"{self.dataset.tag}_feats"
+        _, retr_texts, retr_gts = self.dataset.get_retr_data() 
+
         author_texts = retr_gts
         full_auth_texts = retr_texts if retr_texts != retr_gts else author_texts
         author_features = self.get_feat_file(file_name)
@@ -241,7 +246,9 @@ class FeatureProcessor():
             self.save_feat_file(file_name, author_features)
         return author_features
     
-    def prepare_features(self, all_features, feature_list, top_k=10):
+    def prepare_features(self, feature_list, top_k=10):
+
+        all_features = self.get_all_features(feature_list)
 
         all_author_features = []
         for i in range(len(all_features[list(all_features.keys())[0]])):
