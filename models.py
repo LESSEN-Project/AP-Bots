@@ -37,52 +37,6 @@ class LLM:
         config = configparser.ConfigParser()
         config.read(os.path.join(Path(__file__).absolute().parent, "model_config.cfg"))
         return config
-    
-    def prompt_chatbot(self, prompt, gen_params=None):
-
-        if not gen_params:
-            gen_params = self.gen_params
-        else:
-            gen_params = self.get_gen_params(gen_params)
-
-        if self.model_type in ["PPLX", "GROQ", "TGTR"] or self.family == "GPT":
-
-            response = self.model.chat.completions.create(model=self.repo_id, messages=prompt, **gen_params)
-            response = response.choices[0].message.content
-
-        elif self.family == "CLAUDE":
-
-            if len(prompt) > 1:
-                sys_msg = prompt[0]["content"]
-                prompt = [prompt[1]]
-                response = self.model.messages.create(model=self.repo_id, messages=prompt, system=sys_msg, **gen_params)
-
-            else:
-                response = self.model.messages.create(model=self.repo_id, messages=prompt, **gen_params)
-            response = response.content[0].text   
-
-        elif self.family == "GEMINI":
-
-            messages = []
-            for turn in prompt:
-                role = "user" if turn["role"] in ["user", "system"] else "model"
-                messages.append({
-                    "role": role,
-                    "parts": [turn["content"]]
-                })
-            response = self.model.generate_content(messages, generation_config=genai.types.GenerationConfig(**gen_params))
-            response = response.text 
-
-        else:
-
-            if self.family in ["MISTRAL", "GEMMA"]:
-                if len(prompt) > 1:
-                    prompt = [{"role": "user", "content": "\n".join([turn["content"] for turn in prompt])}]
-
-            pipe = pipeline("text-generation", model=self.model, tokenizer=self.tokenizer, **gen_params)
-            response = pipe(prompt)[0]["generated_text"][-1]["content"]
-
-        return response
 
     def get_avail_space(self, prompt):
 
@@ -235,3 +189,50 @@ class LLM:
                     quantization_config=bnb_config,
                     low_cpu_mem_usage=True,
                     device_map="auto")
+
+    def prompt_chatbot(self, prompt, stream=True, gen_params=None):
+
+        if not gen_params:
+            gen_params = self.gen_params
+        else:
+            gen_params = self.get_gen_params(gen_params)
+
+        if self.model_type in ["PPLX", "GROQ", "TGTR"] or self.family == "GPT":
+
+            response = self.model.chat.completions.create(model=self.repo_id, messages=prompt, **gen_params)
+            response = response.choices[0].message.content
+
+        elif self.family == "CLAUDE":
+
+            if len(prompt) > 1:
+                sys_msg = prompt[0]["content"]
+                prompt = [prompt[1]]
+                response = self.model.messages.create(model=self.repo_id, messages=prompt, system=sys_msg, **gen_params)
+
+            else:
+                response = self.model.messages.create(model=self.repo_id, messages=prompt, **gen_params)
+            response = response.content[0].text   
+
+        elif self.family == "GEMINI":
+
+            messages = []
+            for turn in prompt:
+                role = "user" if turn["role"] in ["user", "system"] else "model"
+                messages.append({
+                    "role": role,
+                    "parts": [turn["content"]]
+                })
+            response = self.model.generate_content(messages, generation_config=genai.types.GenerationConfig(**gen_params))
+            response = response.text 
+
+        else:
+
+            if self.family in ["MISTRAL", "GEMMA"]:
+                if len(prompt) > 1:
+                    prompt = [{"role": "user", "content": "\n".join([turn["content"] for turn in prompt])}]
+
+            pipe = pipeline("text-generation", model=self.model, tokenizer=self.tokenizer, **gen_params)
+            response = pipe(prompt)[0]["generated_text"][-1]["content"]
+
+        return response
+
