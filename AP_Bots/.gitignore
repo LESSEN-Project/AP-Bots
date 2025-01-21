@@ -18,3 +18,5 @@ lamp_preds/
 *.out
 
 .python-version
+
+AP_Bots.egg-info/

@@ -5,8 +5,8 @@ import sys
 from evaluate import load
 from openai import OpenAI
 
-from utils.file_utils import oai_get_batch_res, parse_filename
-from utils.argument_parser import parse_args
+from AP_Bots.utils.file_utils import oai_get_batch_res, parse_filename
+from AP_Bots.utils.argument_parser import parse_args
 
 _, dataset, _, _ = parse_args()
 

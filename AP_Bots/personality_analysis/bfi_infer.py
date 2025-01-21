@@ -7,11 +7,11 @@ import torch
 import numpy as np
 from openai import OpenAI
 
-from models import LLM
-from prompts import get_BFI_prompts
-from utils.argument_parser import parse_args
-from utils.file_utils import oai_get_or_create_file
-from utils.misc import get_model_list
+from AP_Bots.models import LLM
+from AP_Bots.prompts import get_BFI_prompts
+from AP_Bots.utils.argument_parser import parse_args
+from AP_Bots.utils.file_utils import oai_get_or_create_file
+from AP_Bots.utils.misc import get_model_list
 
 pred_path = os.path.join("files", "preds")
 bfi_path = os.path.join("personality_analysis", "files", "inferred_bfi")

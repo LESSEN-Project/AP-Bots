@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 from scipy import stats
 from collections import defaultdict
 
-from retriever import Retriever
-from utils.argument_parser import get_args, parse_dataset
-from personality_analysis.analysis_utils import load_eval_results, load_predictions, get_exp_eval_results
+from AP_Bots.retriever import Retriever
+from AP_Bots.utils.argument_parser import get_args, parse_dataset
+from AP_Bots.personality_analysis.analysis_utils import load_eval_results, load_predictions, get_exp_eval_results
 
 
 def analyze_distances(distances: List[float], model: str, k: int):

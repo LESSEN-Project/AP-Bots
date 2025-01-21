@@ -8,8 +8,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import os
 
-from utils.argument_parser import get_args, parse_dataset
-from personality_analysis.analysis_utils import load_eval_results, load_predictions, get_model_and_k
+from AP_Bots.utils.argument_parser import get_args, parse_dataset
+from AP_Bots.personality_analysis.analysis_utils import load_eval_results, load_predictions, get_model_and_k
 
 nlp = spacy.load("en_core_web_sm")
 

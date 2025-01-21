@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import copy
 
-from exp_datasets import LampDataset, AmazonDataset
+from AP_Bots.exp_datasets import LampDataset, AmazonDataset
 
 def get_args():
 

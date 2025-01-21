@@ -5,9 +5,9 @@ import sys
 from evaluate import load
 from openai import OpenAI
 
-from utils.file_utils import parse_filename, oai_get_batch_res
-from utils.argument_parser import parse_args
-from utils.output_parser import extract_bfi_scores
+from AP_Bots.utils.file_utils import parse_filename, oai_get_batch_res
+from AP_Bots.utils.argument_parser import parse_args
+from AP_Bots.utils.output_parser import extract_bfi_scores
 
 _, dataset, _, _ = parse_args()
 bfi_model = "LLAMA-3.3-70B"

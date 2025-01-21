@@ -11,9 +11,9 @@ from prompts import prepare_res_prompt
 from feature_processor import FeatureProcessor
 from retriever import Retriever
 
-from utils.argument_parser import parse_args
-from utils.file_utils import oai_get_or_create_file
-from utils.misc import get_model_list
+from AP_Bots.utils.argument_parser import parse_args
+from AP_Bots.utils.file_utils import oai_get_or_create_file
+from AP_Bots.utils.misc import get_model_list
 
 args, dataset, final_feature_list, k = parse_args()
 MAX_NEW_TOKENS = 64 if dataset.name == "lamp" else 128

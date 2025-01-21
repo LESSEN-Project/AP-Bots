@@ -11,7 +11,7 @@ from nltk.tokenize import word_tokenize
 from nltk import pos_tag
 from nltk.corpus import stopwords
 
-from utils.output_parser import extract_bfi_scores
+from AP_Bots.utils.output_parser import extract_bfi_scores
 
 class FeatureProcessor():
 

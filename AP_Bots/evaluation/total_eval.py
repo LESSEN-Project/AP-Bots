@@ -5,9 +5,9 @@ from evaluate import load
 from openai import OpenAI
 import pandas as pd
 
-from utils.file_utils import oai_get_batch_res, parse_filename
-from utils.argument_parser import parse_args
-from utils.output_parser import parse_react_output
+from AP_Bots.utils.file_utils import oai_get_batch_res, parse_filename
+from AP_Bots.utils.argument_parser import parse_args
+from AP_Bots.utils.output_parser import parse_react_output
 
 _, dataset, _, _ = parse_args()
 

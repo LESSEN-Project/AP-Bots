@@ -1,0 +1,9 @@
+Metadata-Version: 2.2
+Name: AP-Bots
+Version: 0.1.0
+Author: Mert Yazan
+Author-email: mertyazan2867@gmail.com
+Requires-Python: >=3.11
+Dynamic: author
+Dynamic: author-email
+Dynamic: requires-python

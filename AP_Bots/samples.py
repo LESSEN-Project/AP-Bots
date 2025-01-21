@@ -2,7 +2,7 @@ import json
 import os
 import numpy as np
 
-from utils.argument_parser import parse_args
+from AP_Bots.utils.argument_parser import parse_args
 
 _, dataset, _, _ = parse_args()
 
