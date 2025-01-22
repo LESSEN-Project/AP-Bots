@@ -1,10 +1,14 @@
+import os
+
 from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, MilvusClient
 
 
 class VectorDB:
 
     def __init__(self, uri="app/db/apbots.db"):
+        os.makedirs("app/db", exist_ok=True)
         self.client = MilvusClient(uri=uri)
+        self.initialize_db()
 
     def initialize_db(self):
         
@@ -15,7 +19,7 @@ class VectorDB:
                 FieldSchema(name="password", dtype=DataType.VARCHAR, max_length=100)
             ]
             schema = CollectionSchema(fields, description="User collection")
-            client.create_collection(collection_name="user", schema=schema)
+            self.client.create_collection(collection_name="user", schema=schema)
         
         # Check and create conversation collection
         if not self.client.has_collection("conversation"):
@@ -29,9 +33,7 @@ class VectorDB:
                 FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=768)
             ]
             schema = CollectionSchema(fields, description="Conversation collection")
-            client.create_collection(collection_name="conversation", schema=schema)
-
-        return client
+            self.client.create_collection(collection_name="conversation", schema=schema)
 
     def authenticate_user(self, username, password):
 

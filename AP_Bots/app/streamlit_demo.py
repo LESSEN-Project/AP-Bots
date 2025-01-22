@@ -1,22 +1,27 @@
 import time
-
 import streamlit as st
-import streamlit_authenticator as stauth
-
 from vectordb import VectorDB
 from AP_Bots.models import LLM
 
-db = VectorDB()
+# Initialize DB once
+if "db" not in st.session_state:
+    st.session_state.db = VectorDB()
 
 st.title("AP-Bot")
-chatbot_name = "DeepSeek-R1-Distill-Llama-8B-GGUF"
-chatbot = LLM(chatbot_name)
+
+# Load chatbot once
+if "chatbot" not in st.session_state:
+    chatbot_name = "LLAMA-3.2-3B"
+    st.session_state.chatbot = LLM(chatbot_name)
 
 def stream_output(output):
     for word in output:
         yield word
         time.sleep(0.005)
 
+# ----------------------
+# Authentication Sidebar
+# ----------------------
 if "logged_in" not in st.session_state:
     st.sidebar.title("Login / Sign Up")
     username = st.sidebar.text_input("Username", on_change=lambda: st.session_state.update(action='login'))
@@ -25,7 +30,7 @@ if "logged_in" not in st.session_state:
     signup_button = st.sidebar.button("Sign Up")
 
     if login_button or (username and password and st.session_state.get("action") == 'login'):
-        success, message, user_id = db.authenticate_user(username, password)
+        success, message, user_id = st.session_state.db.authenticate_user(username, password)
         if success:
             st.session_state["logged_in"] = True
             st.session_state["username"] = username
@@ -36,7 +41,7 @@ if "logged_in" not in st.session_state:
             st.sidebar.error(message)
 
     if signup_button:
-        success, message, user_id = db.sign_up_user(username, password)
+        success, message, user_id = st.session_state.db.sign_up_user(username, password)
         if success:
             st.session_state["logged_in"] = True
             st.session_state["username"] = username
@@ -46,66 +51,130 @@ if "logged_in" not in st.session_state:
         else:
             st.sidebar.error(message)
 else:
-    if "change_password" in st.session_state:
-        st.sidebar.title("Change Password")
-        current_password = st.sidebar.text_input("Current Password", type="password", key="current_pw")
-        new_password = st.sidebar.text_input("New Password", type="password", key="new_pw")
-        confirm_password = st.sidebar.text_input("Confirm Password", type="password", key="confirm_pw")
-        if st.sidebar.button("Submit") or (st.session_state.get("current_pw") and st.session_state.get("new_pw") and st.session_state.get("confirm_pw") and st.session_state.get("key") == "confirm_pw"):
-            if not current_password or not new_password or not confirm_password:
-                st.sidebar.warning("All fields must be filled.")
-            elif new_password != confirm_password:
-                st.sidebar.error("Passwords do not match.")
-            else:
-                auth_success, _, _ = db.authenticate_user(st.session_state["username"], current_password)
-                if auth_success:
-                    if current_password == new_password:
-                        st.sidebar.error("New password cannot be the same as the old password.")
-                    else:
-                        db.change_password(st.session_state["user_id"], new_password)
-                        st.sidebar.success("Password changed successfully.")
-                        del st.session_state["change_password"]
-                        st.rerun()
-                else:
-                    st.sidebar.error("Current password is incorrect.")
-        if st.sidebar.button("Back"):
-            del st.session_state["change_password"]
-            st.rerun()
-    else:
-        st.sidebar.title(f"Welcome, {st.session_state['username']}")
-        if st.sidebar.button("Change Password"):
-            st.session_state["change_password"] = True
-            st.rerun()
-        if st.sidebar.button("Logout"):
-            st.session_state.clear()
-            st.rerun()
-        if st.sidebar.button("Delete Account"):
-            db.client.delete(collection_name="user", filter=f"user_name == '{st.session_state['username']}'")
-            del st.session_state["logged_in"]
-            del st.session_state["username"]
-            del st.session_state["user_id"]
-            st.sidebar.success("Account deleted.")
-            st.rerun()
+    st.sidebar.title(f"Welcome, {st.session_state['username']}")
+    if st.sidebar.button("Change Password"):
+        st.session_state["change_password"] = True
+        st.rerun()
+    if st.sidebar.button("Logout"):
+        st.session_state.clear()
+        st.rerun()
+    if st.sidebar.button("Delete Account"):
+        st.session_state.db.client.delete(
+            collection_name="user",
+            filter=f"user_name == '{st.session_state['username']}'"
+        )
+        del st.session_state["logged_in"]
+        del st.session_state["username"]
+        del st.session_state["user_id"]
+        st.sidebar.success("Account deleted.")
+        st.rerun()
 
+# ----------------------
 # Main Chat Interface
+# ----------------------
 if "logged_in" in st.session_state:
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-    if prompt := st.chat_input("What is up?"):
+    # Create a container for chat messages with reduced bottom padding
+    chat_container = st.container()
+    with chat_container:
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+        # Reduced padding from 100px to 70px
+        st.markdown("<div style='padding-bottom: 70px'></div>", unsafe_allow_html=True)
+
+    # Custom CSS for fixed bottom controls
+    st.write(
+        """
+        <style>
+        /* Fixed footer container */
+        .fixed-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 1rem;
+            border-top: 1px solid #e0e0e0;
+            z-index: 999;
+        }
+        
+        /* Main container layout */
+        .footer-content {
+            max-width: min(800px, 100% - 2rem);
+            margin: 0 auto;
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        /* Chat input styling */
+        .footer-content .chat-input {
+            flex-grow: 1;
+        }
+        
+        /* Trash button styling */
+        .footer-content .trash-button {
+            margin-top: 0.5rem;
+            height: 48px;
+        }
+        
+        /* Adjust main content area */
+        .main-content {
+            padding-bottom: 40px !important;  /* Reduced from 120px */
+        }
+
+        @media (max-width: 768px) {
+            .fixed-footer {
+                padding: 0.5rem;
+            }
+            .footer-content {
+                width: calc(100% - 1rem);
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Fixed footer container
+    with st.container():
+        st.markdown('<div class="fixed-footer"><div class="footer-content">', unsafe_allow_html=True)
+        
+        # Chat input and trash button
+        col1, col2 = st.columns([8, 1])
+        with col1:
+            prompt = st.chat_input("What is up?", key="fixed-chat-input")
+        with col2:
+            if st.button("🗑️", 
+                       help="Clear chat history", 
+                       key="trash-chat-button",
+                       use_container_width=True):
+                st.session_state.messages.clear()
+                st.rerun()
+        
+        st.markdown('</div></div>', unsafe_allow_html=True)
+
+    # Handle user input
+    if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+        with chat_container:
+            with st.chat_message("user"):
+                st.markdown(prompt)
 
-        with st.chat_message("assistant"):
-            response = chatbot.prompt_chatbot(prompt=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ])
-            response = stream_output(response)
-            response = st.write_stream(response)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+            with st.chat_message("assistant"):
+                response = st.session_state.chatbot.prompt_chatbot(
+                    prompt=[
+                        {"role": m["role"], "content": m["content"]}
+                        for m in st.session_state.messages
+                    ]
+                )
+                streamed = stream_output(response)
+                streamed = st.write_stream(streamed)
+
+        st.session_state.messages.append({"role": "assistant", "content": streamed})
