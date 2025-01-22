@@ -9,7 +9,7 @@ from AP_Bots.models import LLM
 db = VectorDB()
 
 st.title("AP-Bot")
-chatbot_name = "GPT-4o-mini"
+chatbot_name = "DeepSeek-R1-Distill-Llama-8B-GGUF"
 chatbot = LLM(chatbot_name)
 
 def stream_output(output):
