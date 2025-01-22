@@ -1,4 +1,0 @@
-app
-evaluation
-personality_analysis
-utils

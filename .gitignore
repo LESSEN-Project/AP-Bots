@@ -1,0 +1,23 @@
+AP_Bots.egg-info/dependency_links.txt
+AP_Bots.egg-info/PKG-INFO
+AP_Bots.egg-info/SOURCES.txt
+AP_Bots.egg-info/top_level.txt
+
+# Dataset and feature files
+AP_Bots/files/datasets/
+AP_Bots/files/features/
+
+AP_Bots/lamp_preds/
+
+# Python cache files
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Slurm files
+*.slurm
+
+# Error and output files
+*.err
+*.out
