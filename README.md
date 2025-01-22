@@ -16,7 +16,7 @@ This section provides information for the corresponding paper.
 _Personalization with retrieval-augmented generation (RAG) often fails to capture the fine-grained features of authors, making it hard to identify their unique traits. To enrich the RAG context, we propose providing Large Language Models with author-specific features, such as the average sentiment polarity and frequently used words, in addition to past samples from the author’s profile. We introduce a new feature called Contrastive Examples, which retrieves documents from other authors to highlight what distinguishes a particular author. Our experiments show that adding a couple of sentences about which named entities, dependency patterns, and words a person uses frequently significantly improves personalized text generation. Combining features with contrastive examples boosts the performance further, achieving a relative 15% improvement over baseline RAG while outperforming the benchmarks. Our results show the value of fine-grained features for better personalization, while opening a new research dimension to include contrastive examples as a complement with RAG._
 
 <p align="center">
-  <img src="files/images/CE_Framework.png" class="center" width="75%">
+  <img src="AP_Bots/files/images/CE_Framework.png" class="center" width="75%">
 </p>
   
 ### Running Experiments
@@ -54,7 +54,7 @@ This command evaluates all results in the preds folder for the specified dataset
 AP-Bots is a framework aimed to increase the user satisfaction with chatbots by offering personalized, adaptive responses. The framework processes customer sentiments, personality, and the context of the conversation to choose the best conversation style for the customer. The bot tailors its responses for the customer, and it can change its style if the customer emotional state gets negative.
 
 <p align="center">
-  <img src="files/images/AP-Bots.jpg" width="75%">
+  <img src="AP_Bots/files/images/AP-Bots.jpg" width="75%">
 </p>
 
 ## Requirements
