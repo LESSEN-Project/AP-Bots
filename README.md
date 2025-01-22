@@ -1,11 +1,29 @@
 # AP-Bots: Adaptive, Personalized Chatbots
 
+- [Requirements](#requirements)
 - [Improving RAG for Personalization with Author Features and Contrastive Examples](#improving-rag-for-personalization-with-author-features-and-contrastive-examples)
   - [Running Experiments](#running-experiments)
   - [Evaluation](#evaluation)
 - [AP-Bots Framework](#ap-bots-framework)
-- [Requirements](#requirements)
 
+## Requirements
+
+Ensure you have the following installed:
+
+- **Python**: `>= 3.11.3`
+- **CUDA**: `>= 12`
+
+Install the required Python packages:
+
+```bash
+pip install -r requirements.txt
+```
+
+Make the package editable:
+
+```bash
+pip install -e .
+```
 
 ## Improving RAG for Personalization with Author Features and Contrastive Examples
 
@@ -24,7 +42,7 @@ _Personalization with retrieval-augmented generation (RAG) often fails to captur
 Run an experiment with the following command:
 
 ```bash
-python run_exp.py -d lamp_5_dev_user -k 5 -f WF DPF -r contriever -ce 3
+python AP_Bots/run_exp.py -d lamp_5_dev_user -k 5 -f WF DPF -r contriever -ce 3
 ```
 
 | Argument                         | Data Type    | Description                                                                                                                | Default             |
@@ -44,7 +62,7 @@ python run_exp.py -d lamp_5_dev_user -k 5 -f WF DPF -r contriever -ce 3
 Evaluate a dataset with the following command:
 
 ```bash
-python -m evaluation.eval -d dataset_name
+python AP_Bots/evaluation.total_eval -d dataset_name
 ```
 
 This command evaluates all results in the preds folder for the specified dataset and generates a CSV file in the evaluation directory.
@@ -56,16 +74,3 @@ AP-Bots is a framework aimed to increase the user satisfaction with chatbots by 
 <p align="center">
   <img src="AP_Bots/files/images/AP-Bots.jpg" width="75%">
 </p>
-
-## Requirements
-
-Ensure you have the following installed:
-
-- **Python**: `>= 3.11.3`
-- **CUDA**: `>= 12`
-
-Install the required Python packages:
-
-```bash
-pip install -r requirements.txt
-```
