@@ -9,6 +9,9 @@ AP_Bots/files/features/
 
 AP_Bots/lamp_preds/
 
+# VectorDB
+AP_Bots/app/db
+
 # Python cache files
 **/__pycache__/
 *.pyc

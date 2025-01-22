@@ -3,7 +3,7 @@ from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, Milvus
 
 class VectorDB:
 
-    def __init__(self, uri="./apbots.db"):
+    def __init__(self, uri="app/db/apbots.db"):
         self.client = MilvusClient(uri=uri)
 
     def initialize_db(self):
