@@ -223,12 +223,16 @@ class LLM:
         elif self.family == "CLAUDE":
 
             if len(prompt) > 1:
-                sys_msg = prompt[0]["content"]
-                prompt = [prompt[1]]
+                if prompt[0]["role"] == "system":
+                    sys_msg = prompt[0]["content"]
+                    prompt = prompt[1:]
+                else:
+                    sys_msg = ""
                 response = self.model.messages.create(model=self.repo_id, messages=prompt, system=sys_msg, **gen_params)
 
             else:
                 response = self.model.messages.create(model=self.repo_id, messages=prompt, **gen_params)
+
             response = response.content[0].text   
 
         elif self.family == "GEMINI":
