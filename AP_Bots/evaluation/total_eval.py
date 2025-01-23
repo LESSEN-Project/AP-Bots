@@ -7,7 +7,7 @@ import pandas as pd
 
 from AP_Bots.utils.file_utils import oai_get_batch_res, parse_filename
 from AP_Bots.utils.argument_parser import parse_args
-from AP_Bots.utils.output_parser import parse_react_output
+from AP_Bots.utils.output_parser import parse_react_output, parse_r1_output
 
 _, dataset, _, _ = parse_args()
 
@@ -44,6 +44,9 @@ for file in os.listdir(preds_dir):
 
         if params["PS"] == "react":
             preds = [parse_react_output(p) for p in preds]
+
+        if params["model"].startswith("R1"):
+            preds = [parse_r1_output(p)[1] for p in preds]
 
         rouge_results = rouge.compute(predictions=preds, references=out_gts)
         bleu_results = bleu.compute(predictions=preds, references=[[gt] for gt in out_gts])

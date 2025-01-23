@@ -3,13 +3,11 @@ import streamlit as st
 from vectordb import VectorDB
 from AP_Bots.models import LLM
 
-# Initialize DB once
 if "db" not in st.session_state:
     st.session_state.db = VectorDB()
 
 st.title("AP-Bot")
 
-# Load chatbot once
 if "chatbot" not in st.session_state:
     chatbot_name = "LLAMA-3.2-3B"
     st.session_state.chatbot = LLM(chatbot_name)
@@ -19,9 +17,6 @@ def stream_output(output):
         yield word
         time.sleep(0.005)
 
-# ----------------------
-# Authentication Sidebar
-# ----------------------
 if "logged_in" not in st.session_state:
     st.sidebar.title("Login / Sign Up")
     username = st.sidebar.text_input("Username", on_change=lambda: st.session_state.update(action='login'))
@@ -69,9 +64,6 @@ else:
         st.sidebar.success("Account deleted.")
         st.rerun()
 
-# ----------------------
-# Main Chat Interface
-# ----------------------
 if "logged_in" in st.session_state:
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -79,17 +71,14 @@ if "logged_in" in st.session_state:
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Create a container for chat messages with reduced bottom padding
     chat_container = st.container()
     with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # Reduced padding from 100px to 70px
         st.markdown("<div style='padding-bottom: 70px'></div>", unsafe_allow_html=True)
 
-    # Custom CSS for fixed bottom controls
     st.write(
         """
         <style>
@@ -142,11 +131,9 @@ if "logged_in" in st.session_state:
         unsafe_allow_html=True
     )
 
-    # Fixed footer container
     with st.container():
         st.markdown('<div class="fixed-footer"><div class="footer-content">', unsafe_allow_html=True)
         
-        # Chat input and trash button
         col1, col2 = st.columns([8, 1])
         with col1:
             prompt = st.chat_input("What is up?", key="fixed-chat-input")
@@ -160,7 +147,6 @@ if "logged_in" in st.session_state:
         
         st.markdown('</div></div>', unsafe_allow_html=True)
 
-    # Handle user input
     if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with chat_container:

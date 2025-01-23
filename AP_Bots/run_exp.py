@@ -24,8 +24,8 @@ os.makedirs(pred_path, exist_ok=True)
 if dataset.name == "lamp":
     ids = dataset.get_ids()    
 
-# LLMs = get_model_list()
-LLMs = ["GPT-4o-mini"]
+LLMs = get_model_list()
+# LLMs = ["GPT-4o-mini"]
 
 retriever = Retriever(dataset, args.retriever)
 all_context = retriever.get_context(k) 
@@ -69,6 +69,7 @@ for model_name in LLMs:
         print("Batch openai jobs can only be done on the whole dataset!")
         continue
 
+    MAX_NEW_TOKENS = MAX_NEW_TOKENS * 10 if model_name.startswith("R1") else MAX_NEW_TOKENS
     model_params = None
     if model_name.endswith("70B"):
         print("70B model, using quantization!")
