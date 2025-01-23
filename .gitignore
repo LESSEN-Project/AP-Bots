@@ -11,6 +11,7 @@ AP_Bots/lamp_preds/
 
 # VectorDB
 AP_Bots/app/db
+AP_Bots/app/test_db.py
 
 # Python cache files
 **/__pycache__/
