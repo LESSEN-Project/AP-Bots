@@ -1,12 +1,16 @@
 import os
+from datetime import datetime
 
-from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, MilvusClient
+import numpy as np
+
+from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, MilvusClient, model
 
 
 class VectorDB:
 
     def __init__(self, uri="app/db/apbots.db"):
         os.makedirs("app/db", exist_ok=True)
+        self.embedder = model.DefaultEmbeddingFunction()
         self.client = MilvusClient(uri=uri)
         self.initialize_db()
 
@@ -21,19 +25,29 @@ class VectorDB:
             schema = CollectionSchema(fields, description="User collection")
             self.client.create_collection(collection_name="user", schema=schema)
         
-        # Check and create conversation collection
-        if not self.client.has_collection("conversation"):
+        if not self.client.has_collection("conversations"):
             fields = [
-                FieldSchema(name="conv_id", dtype=DataType.INT64, is_primary=True, auto_id=True),
+                FieldSchema(name="conv_id", dtype=DataType.INT64, is_primary=True),
                 FieldSchema(name="user_id", dtype=DataType.INT64),
                 FieldSchema(name="conversation", dtype=DataType.VARCHAR, max_length=5000),
                 FieldSchema(name="chatbot", dtype=DataType.VARCHAR, max_length=100),
                 FieldSchema(name="start_time", dtype=DataType.VARCHAR, max_length=100),
                 FieldSchema(name="end_time", dtype=DataType.VARCHAR, max_length=100),
-                FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=768)
+                FieldSchema(name="dense_vector", dtype=DataType.FLOAT_VECTOR, dim=384)
             ]
             schema = CollectionSchema(fields, description="Conversation collection")
-            self.client.create_collection(collection_name="conversation", schema=schema)
+
+            index_params = self.client.prepare_index_params()
+
+            index_params.add_index(
+                field_name="dense_vector",
+                index_name="dense_vector_index",
+                index_type="IVF_FLAT",
+                metric_type="IP",
+                params={"nlist": 128},
+            )
+
+            self.client.create_collection(collection_name="conversations", schema=schema, index_params=index_params)
 
     def authenticate_user(self, username, password):
 
@@ -49,7 +63,7 @@ class VectorDB:
 
         res = self.client.query(collection_name="user", filter=f"user_name == '{username}'", output_fields=["user_id", "user_name"])
         if res:
-            return False, "Username already exists."
+            return False, "Username already exists.", -1
         self.client.insert(collection_name="user", data={"user_name": username,
                                                         "password": password})
         
@@ -62,14 +76,30 @@ class VectorDB:
         cur_user[0]["password"] = new_password
         self.client.upsert(collection_name="user", data=cur_user[0])
 
-    def save_conversation(self, user_id, conversation, chatbot_name, embedding):
+    def get_embedding(self, text):
+        return self.embedder.encode_documents(text)[0]
+
+    def save_conversation(self, user_id, conversation, chatbot_name):
 
         start_time = datetime.now().isoformat()
+        conv_id = hash(f"{start_time}{user_id}") % (2**31)
         self.client.insert(collection_name="conversations", data={
+            "conv_id": hash(f"{start_time}{user_id}") % (2**31) ,
             "user_id": user_id,
             "conversation": conversation,
             "chatbot": chatbot_name,
             "start_time": start_time,
             "end_time": datetime.now().isoformat(),
-            "embedding": embedding
+            "dense_vector": self.get_embedding([conversation])
         })
+        
+        return conv_id
+
+    def update_conversation(self, conv_id, conversation, end_time):
+
+        cur_conv = self.client.get("conversations", ids=conv_id)
+        cur_conv[0]["conversation"] = conversation
+        cur_conv[0]["end_time"] = end_time
+        cur_conv[0]["dense_vector"] = self.get_embedding([conversation])
+
+        self.client.upsert(collection_name="conversations", data=cur_conv[0])

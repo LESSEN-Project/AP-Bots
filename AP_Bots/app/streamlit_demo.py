@@ -2,6 +2,7 @@ import time
 import streamlit as st
 from vectordb import VectorDB
 from AP_Bots.models import LLM
+from datetime import datetime
 
 if "db" not in st.session_state:
     st.session_state.db = VectorDB()
@@ -9,7 +10,7 @@ if "db" not in st.session_state:
 st.title("AP-Bot")
 
 if "chatbot" not in st.session_state:
-    chatbot_name = "CLAUDE-3.5-SONNET"
+    chatbot_name = "GPT-4o-mini"
     st.session_state.chatbot = LLM(chatbot_name)
 
 def stream_output(output):
@@ -37,25 +38,29 @@ if "logged_in" not in st.session_state:
             st.sidebar.error(message)
 
     if signup_button:
-        success, message, user_id = st.session_state.db.sign_up_user(username, password)
-        if success:
-            st.session_state["logged_in"] = True
-            st.session_state["username"] = username
-            st.session_state["user_id"] = user_id
-            st.sidebar.success(message)
-            st.rerun()
+        if not password.strip():
+            st.sidebar.error("Password cannot be empty.")
         else:
-            st.sidebar.error(message)
+            success, message, user_id = st.session_state.db.sign_up_user(username, password)
+            if success:
+                st.session_state["logged_in"] = True
+                st.session_state["username"] = username
+                st.session_state["user_id"] = user_id
+                st.sidebar.success(message)
+                st.rerun()
+            else:
+                st.sidebar.error(message)
 
 # --------------------- AFTER LOGIN -----------------------------
 else:
     st.sidebar.title(f"Welcome, {st.session_state['username']}")
 
-    # Optionally add "Clear Chat" in the sidebar with a trash can icon
     if st.sidebar.button("Clear Current Chat", icon="🗑️"):
+        if "conv_id" in st.session_state:
+            st.session_state.db.delete_conversation(st.session_state["conv_id"])
+            del st.session_state["conv_id"]
         st.session_state.messages = []
 
-    # Place password, logout, and delete account buttons at the bottom
     with st.sidebar.expander("Account Settings"):
         if st.button("Change Password"):
             st.session_state["change_password"] = True
@@ -76,21 +81,17 @@ else:
             st.sidebar.success("Account deleted.")
             st.rerun()
 
-    # Initialize messages
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
 
-    # Display messages in chat format
     chat_container = st.container()
     with chat_container:
         for msg in st.session_state.messages:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-    # Use default chat_input (pinned at the bottom)
     prompt = st.chat_input("What is up?")
 
-    # If user enters a new prompt
     if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
 
@@ -109,3 +110,20 @@ else:
                 streamed_text = st.write_stream(streamed)
 
         st.session_state.messages.append({"role": "assistant", "content": streamed_text})
+
+        # Conversation tracking
+        current_time = datetime.now().isoformat()
+        conversation_str = " ".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages)
+
+        if "conv_id" not in st.session_state:
+            st.session_state["conv_id"] = st.session_state.db.save_conversation(
+                user_id=st.session_state["user_id"],
+                conversation=conversation_str,
+                chatbot_name=st.session_state.chatbot.model_name,
+            )
+        else:
+            st.session_state.db.update_conversation(
+                conv_id=st.session_state["conv_id"],
+                conversation=conversation_str,
+                end_time=current_time
+            )
