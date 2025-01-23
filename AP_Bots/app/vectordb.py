@@ -76,6 +76,13 @@ class VectorDB:
         cur_user[0]["password"] = new_password
         self.client.upsert(collection_name="user", data=cur_user[0])
 
+    def delete_user(self, user_id):
+
+        self.client.delete(collection_name="user", ids=user_id)
+        user_conv_ids = self.client.query(collection_name="conversations", filter=f"user_id == {user_id}", output_fields=["conv_id"])
+        if user_conv_ids:
+            self.delete_conversation([uc_id["conv_id"] for uc_id in user_conv_ids])
+
     def get_embedding(self, text):
         return self.embedder.encode_documents(text)[0]
 
@@ -103,3 +110,6 @@ class VectorDB:
         cur_conv[0]["dense_vector"] = self.get_embedding([conversation])
 
         self.client.upsert(collection_name="conversations", data=cur_conv[0])
+
+    def delete_conversation(self, conv_id):
+        self.client.delete(collection_name="conversations", ids=conv_id)

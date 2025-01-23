@@ -21,7 +21,7 @@ class LLM:
     def __init__(self, model_name, model_params=None, gen_params=None) -> None:
         
         login(token=os.getenv("HF_API_KEY"), new_session=False)
-        self.cfg = self.get_model_cfg()[model_name]
+        self.cfg = LLM.get_model_cfg()[model_name]
         self.model_name = model_name
         self.family = model_name.split("-")[0]
         self.repo_id = self.cfg.get("repo_id")
@@ -33,7 +33,8 @@ class LLM:
         self.gen_params = self.get_gen_params(gen_params)
         self.model = self.init_model()
 
-    def get_model_cfg(self):
+    @staticmethod
+    def get_model_cfg():
 
         config = configparser.ConfigParser()
         config.read(os.path.join(Path(__file__).absolute().parent, "model_config.cfg"))

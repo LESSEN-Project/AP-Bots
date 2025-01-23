@@ -3,127 +3,190 @@ import streamlit as st
 from vectordb import VectorDB
 from AP_Bots.models import LLM
 from datetime import datetime
+from AP_Bots.app.utils import set_wide_sidebar, stream_output, get_all_bots, reset_session_state
+
+MAX_TOKENS = 128
+
+all_bots = get_all_bots()
 
 if "db" not in st.session_state:
     st.session_state.db = VectorDB()
 
 st.title("AP-Bot")
 
+# Initialize default chatbot
 if "chatbot" not in st.session_state:
-    chatbot_name = "GPT-4o-mini"
-    st.session_state.chatbot = LLM(chatbot_name)
+    st.session_state.chatbot = LLM("GPT-4o-mini", gen_params={"max_new_tokens": MAX_TOKENS})
 
-def stream_output(output):
-    for word in output:
-        yield word
-        time.sleep(0.005)
-
-# --------------------- LOGIN / SIGN-UP -------------------------
+# Authentication Flow
 if "logged_in" not in st.session_state:
-    st.sidebar.title("Login / Sign Up")
-    username = st.sidebar.text_input("Username", on_change=lambda: st.session_state.update(action='login'))
-    password = st.sidebar.text_input("Password", type="password", on_change=lambda: st.session_state.update(action='login'))
-    login_button = st.sidebar.button("Login")
-    signup_button = st.sidebar.button("Sign Up")
+    # Auth state management
+    if 'auth_mode' not in st.session_state:
+        st.session_state.auth_mode = 'login'
+    
+    st.sidebar.title("Login")
+    
+    # Login Panel
+    if st.session_state.auth_mode == 'login':
+        with st.sidebar.form("Login", clear_on_submit=True):
+            username = st.text_input("Username", key="login_uname")
+            password = st.text_input("Password", type="password", key="login_pwd")
+            
+            col1, col2 = st.columns([2, 3])
+            with col1:
+                login_btn = st.form_submit_button("Sign In", use_container_width=True)
+            with col2:
+                if st.form_submit_button("New User? Sign Up!", use_container_width=True):
+                    st.session_state.auth_mode = 'signup'
+                    st.rerun()
 
-    if login_button or (username and password and st.session_state.get("action") == 'login'):
-        success, message, user_id = st.session_state.db.authenticate_user(username, password)
-        if success:
-            st.session_state["logged_in"] = True
-            st.session_state["username"] = username
-            st.session_state["user_id"] = user_id
-            st.sidebar.success(message)
-            st.rerun()
-        else:
-            st.sidebar.error(message)
+            if login_btn:
+                with st.spinner("Authenticating..."):
+                    success, message, user_id = st.session_state.db.authenticate_user(username, password)
+                    if success:
+                        st.session_state.update({
+                            "logged_in": True,
+                            "username": username,
+                            "user_id": user_id
+                        })
+                        st.rerun()
+                    else:
+                        st.error(message)
 
-    if signup_button:
-        if not password.strip():
-            st.sidebar.error("Password cannot be empty.")
-        else:
-            success, message, user_id = st.session_state.db.sign_up_user(username, password)
-            if success:
-                st.session_state["logged_in"] = True
-                st.session_state["username"] = username
-                st.session_state["user_id"] = user_id
-                st.sidebar.success(message)
-                st.rerun()
-            else:
-                st.sidebar.error(message)
+    # Sign-up Panel
+    elif st.session_state.auth_mode == 'signup':
+        with st.sidebar.form("Sign Up", clear_on_submit=True):
+            st.subheader("New Users")
+            new_user = st.text_input("Choose Username", key="signup_uname")
+            new_pass = st.text_input("Choose Password", type="password", key="signup_pwd")
+            
+            col1, col2 = st.columns([2, 3])
+            with col1:
+                signup_btn = st.form_submit_button("Create Account", use_container_width=True)
+            with col2:
+                if st.form_submit_button("Back to Login", use_container_width=True):
+                    st.session_state.auth_mode = 'login'
+                    st.rerun()
 
-# --------------------- AFTER LOGIN -----------------------------
+            if signup_btn:
+                if not new_pass.strip():
+                    st.error("Password cannot be empty")
+                else:
+                    with st.spinner("Creating account..."):
+                        success, message, user_id = st.session_state.db.sign_up_user(new_user, new_pass)
+                        if success:
+                            st.session_state.update({
+                                "logged_in": True,
+                                "auth_mode": 'login',
+                                "username": new_user,
+                                "user_id": user_id
+                            })
+                            st.success("Account created! Logging you in...")
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error(message)
+
+# --------------------- MAIN APP INTERFACE -----------------------------
 else:
-    st.sidebar.title(f"Welcome, {st.session_state['username']}")
+    set_wide_sidebar()
+    if "chatbot" not in st.session_state:
+        st.session_state.chatbot = LLM("GPT-4o-mini", gen_params={"max_new_tokens": MAX_TOKENS})
 
-    if st.sidebar.button("Clear Current Chat", icon="🗑️"):
+    st.sidebar.title(f"Welcome, {st.session_state.username}!")
+    
+    # Chat Management
+    if st.sidebar.button("🧹 New Chat", use_container_width=True):
         if "conv_id" in st.session_state:
-            st.session_state.db.delete_conversation(st.session_state["conv_id"])
+            st.session_state.db.delete_conversation(st.session_state.conv_id)
             del st.session_state["conv_id"]
         st.session_state.messages = []
+        st.toast("New chat session started")
 
-    with st.sidebar.expander("Account Settings"):
-        if st.button("Change Password"):
-            st.session_state["change_password"] = True
-            st.rerun()
-
-        if st.button("Logout"):
-            st.session_state.clear()
-            st.rerun()
-
-        if st.button("Delete Account", icon="🚨", help="This action is irreversible."):
-            st.session_state.db.client.delete(
-                collection_name="user",
-                filter=f"user_name == '{st.session_state['username']}'"
+    # Bot Selection
+    current_bot = st.session_state.chatbot.model_name
+    if all_bots:
+        with st.sidebar.expander("🤖 Chatbot Selection", expanded=True):
+            try:
+                default_index = all_bots.index(current_bot)
+            except ValueError:
+                default_index = 0
+                
+            selected_bot = st.selectbox(
+                "Active Chatbot",
+                options=all_bots,
+                index=default_index,
+                label_visibility="collapsed"
             )
-            del st.session_state["logged_in"]
-            del st.session_state["username"]
-            del st.session_state["user_id"]
-            st.sidebar.success("Account deleted.")
+            
+            if selected_bot != current_bot:
+                with st.status(f"🚀 Loading {selected_bot}...", expanded=True):
+                    st.session_state.chatbot = LLM(selected_bot, gen_params={"max_new_tokens": MAX_TOKENS})
+                    st.toast(f"{selected_bot} ready!", icon="🤖")
+                    st.rerun()
+    else:
+        st.sidebar.error("No chatbots available")
+
+    # Account Management
+    st.sidebar.markdown("---")
+    with st.sidebar.expander("⚙️ Account Settings", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔐 Change Password", use_container_width=True):
+                st.session_state["change_password"] = True
+                st.session_state.messages = []
+                st.rerun()
+        with col2:
+            if st.button("🚪 Logout", use_container_width=True):
+                reset_session_state(st)
+                st.rerun()
+        
+        if st.button("❌ Delete Account", ...):
+            st.session_state.db.delete_user(st.session_state.user_id)
+            reset_session_state(st, full_reset=True)
+            st.success("Account deleted")
+            time.sleep(1)
             st.rerun()
 
+    # Chat Interface
     if "messages" not in st.session_state:
-        st.session_state["messages"] = []
+        st.session_state.messages = []
 
-    chat_container = st.container()
-    with chat_container:
-        for msg in st.session_state.messages:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
+    # Display chat history
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-    prompt = st.chat_input("What is up?")
-
-    if prompt:
+    # Process user input
+    if prompt := st.chat_input("Message AP-Bot..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
-
-        with chat_container:
-            with st.chat_message("user"):
-                st.markdown(prompt)
-
-            with st.chat_message("assistant"):
+        
+        with st.chat_message("user"):
+            st.markdown(prompt)
+            
+        with st.chat_message("assistant"):
+            with st.spinner("Generating response..."):
                 response = st.session_state.chatbot.prompt_chatbot(
-                    prompt=[
-                        {"role": m["role"], "content": m["content"]}
-                        for m in st.session_state.messages
-                    ]
+                    prompt=[{"role": m["role"], "content": m["content"]} 
+                           for m in st.session_state.messages]
                 )
-                streamed = stream_output(response)
-                streamed_text = st.write_stream(streamed)
+                response_stream = stream_output(response)
+                full_response = st.write_stream(response_stream)
+            
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-        st.session_state.messages.append({"role": "assistant", "content": streamed_text})
-
-        # Conversation tracking
-        current_time = datetime.now().isoformat()
-        conversation_str = " ".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages)
-
+        # Save conversation
+        conversation_str = "\n".join(f"{m['role']}: {m['content']}" 
+                                    for m in st.session_state.messages)
         if "conv_id" not in st.session_state:
-            st.session_state["conv_id"] = st.session_state.db.save_conversation(
-                user_id=st.session_state["user_id"],
+            st.session_state.conv_id = st.session_state.db.save_conversation(
+                user_id=st.session_state.user_id,
                 conversation=conversation_str,
                 chatbot_name=st.session_state.chatbot.model_name,
             )
         else:
             st.session_state.db.update_conversation(
-                conv_id=st.session_state["conv_id"],
+                conv_id=st.session_state.conv_id,
                 conversation=conversation_str,
-                end_time=current_time
+                end_time=datetime.now().isoformat()
             )
