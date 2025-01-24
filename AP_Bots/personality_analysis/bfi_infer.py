@@ -137,7 +137,7 @@ for model_name in all_models:
 
         for _ in range(len(all_prompts[start_index:])):
 
-            response = llm.prompt_chatbot(all_prompts[start_index], gen_params={"max_tokens": MAX_NEW_TOKENS, "temperature": TEMPERATURE})
+            response = llm.generate(all_prompts[start_index], gen_params={"max_tokens": MAX_NEW_TOKENS, "temperature": TEMPERATURE})
             bfi_results.append(response)
             
             if (start_index+1) % 500 == 0:

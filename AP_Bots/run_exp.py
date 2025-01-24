@@ -124,7 +124,7 @@ for model_name in LLMs:
 
         else:
 
-            res = llm.prompt_chatbot(prompt, gen_params={"max_new_tokens": MAX_NEW_TOKENS})
+            res = llm.generate(prompt, gen_params={"max_new_tokens": MAX_NEW_TOKENS})
             end_bot_time = time.time()
             all_res.append({
                     "id": id,

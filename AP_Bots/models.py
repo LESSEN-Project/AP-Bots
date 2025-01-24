@@ -209,7 +209,7 @@ class LLM:
                     low_cpu_mem_usage=True,
                     device_map="auto")
 
-    def prompt_chatbot(self, prompt, stream=True, gen_params=None):
+    def generate(self, prompt, stream=True, gen_params=None):
 
         if not gen_params:
             gen_params = self.gen_params
