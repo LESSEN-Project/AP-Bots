@@ -25,17 +25,17 @@ class VectorDB:
             schema = CollectionSchema(fields, description="User collection")
             self.client.create_collection(collection_name="user", schema=schema)
         
-        if not self.client.has_collection("conversations"):
+        if not self.client.has_collection("chat_history"):
             fields = [
                 FieldSchema(name="conv_id", dtype=DataType.INT64, is_primary=True),
                 FieldSchema(name="user_id", dtype=DataType.INT64),
-                FieldSchema(name="conversation", dtype=DataType.VARCHAR, max_length=5000),
-                FieldSchema(name="chatbot", dtype=DataType.VARCHAR, max_length=100),
+                FieldSchema(name="conversation", dtype=DataType.JSON),
+                FieldSchema(name="title", dtype=DataType.VARCHAR, max_length=20),
                 FieldSchema(name="start_time", dtype=DataType.VARCHAR, max_length=100),
                 FieldSchema(name="end_time", dtype=DataType.VARCHAR, max_length=100),
                 FieldSchema(name="dense_vector", dtype=DataType.FLOAT_VECTOR, dim=384)
             ]
-            schema = CollectionSchema(fields, description="Conversation collection")
+            schema = CollectionSchema(fields, description="Chat history collection")
 
             index_params = self.client.prepare_index_params()
 
@@ -47,7 +47,7 @@ class VectorDB:
                 params={"nlist": 128},
             )
 
-            self.client.create_collection(collection_name="conversations", schema=schema, index_params=index_params)
+            self.client.create_collection(collection_name="chat_history", schema=schema, index_params=index_params)
 
     def authenticate_user(self, username, password):
 
@@ -79,37 +79,48 @@ class VectorDB:
     def delete_user(self, user_id):
 
         self.client.delete(collection_name="user", ids=user_id)
-        user_conv_ids = self.client.query(collection_name="conversations", filter=f"user_id == {user_id}", output_fields=["conv_id"])
+        user_conv_ids = self.client.query(collection_name="chat_history", filter=f"user_id == {user_id}", output_fields=["conv_id"])
         if user_conv_ids:
             self.delete_conversation([uc_id["conv_id"] for uc_id in user_conv_ids])
 
     def get_embedding(self, text):
         return self.embedder.encode_documents(text)[0]
 
-    def save_conversation(self, user_id, conversation, chatbot_name):
+    def get_all_user_convs(self, user_id):
+        return self.client.query(collection_name="chat_history", filter="user_id == {user_id}", consistency_level="Strong")
+
+    def save_conversation(self, user_id, turn, title):
 
         start_time = datetime.now().isoformat()
         conv_id = hash(f"{start_time}{user_id}") % (2**31)
-        self.client.insert(collection_name="conversations", data={
+        conv_str = f"User: {turn['user_message']}\nAssistant: {turn['assistant_message']}"
+
+        self.client.insert(collection_name="chat_history", data={
             "conv_id": hash(f"{start_time}{user_id}") % (2**31) ,
             "user_id": user_id,
-            "conversation": conversation,
-            "chatbot": chatbot_name,
+            "conversation": [turn],
+            "title": title,
             "start_time": start_time,
             "end_time": datetime.now().isoformat(),
-            "dense_vector": self.get_embedding([conversation])
+            "dense_vector": self.get_embedding([conv_str])
         })
         
         return conv_id
 
-    def update_conversation(self, conv_id, conversation, end_time):
+    def update_conversation(self, conv_id, turn):
 
-        cur_conv = self.client.get("conversations", ids=conv_id)
-        cur_conv[0]["conversation"] = conversation
-        cur_conv[0]["end_time"] = end_time
-        cur_conv[0]["dense_vector"] = self.get_embedding([conversation])
+        cur_conv = self.client.get("chat_history", ids=conv_id)
+        
+        cur_conv[0]["end_time"] = datetime.now().isoformat()
+        
+        conv_hist = cur_conv[0]["conversation"]
+        conv_hist.append(turn)
+        cur_conv[0]["conversation"] = conv_hist
 
-        self.client.upsert(collection_name="conversations", data=cur_conv[0])
+        all_turns = " ".join(f"User: {turn['user_message']}\nAssistant: {turn['assistant_message']}" for turn in conv_hist)
+        cur_conv[0]["dense_vector"] = self.get_embedding([all_turns])
+
+        self.client.upsert(collection_name="chat_history", data=cur_conv[0])
 
     def delete_conversation(self, conv_id):
-        self.client.delete(collection_name="conversations", ids=conv_id)
+        self.client.delete(collection_name="chat_history", ids=conv_id)
