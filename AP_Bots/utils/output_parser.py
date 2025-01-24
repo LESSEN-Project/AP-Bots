@@ -67,10 +67,9 @@ def parse_react_output(text: str) -> str:
         print(f"Error parsing react output: {e}")
         return ""
 
-
 def parse_r1_output(text):
 
-    match = re.match(r'<thinking>(.*?)</thinking>(.*)', text, re.DOTALL)
+    match = re.match(r'<think>(.*?)</think>(.*)', text, re.DOTALL)
     if match:
         thought = match.group(1).strip()
         content = match.group(2).strip()

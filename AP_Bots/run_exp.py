@@ -69,7 +69,7 @@ for model_name in LLMs:
         print("Batch openai jobs can only be done on the whole dataset!")
         continue
 
-    MAX_NEW_TOKENS = MAX_NEW_TOKENS * 10 if model_name.startswith("R1") else MAX_NEW_TOKENS
+    MAX_NEW_TOKENS = MAX_NEW_TOKENS * 20 if model_name.startswith("R1") else MAX_NEW_TOKENS
     model_params = None
     if model_name.endswith("70B"):
         print("70B model, using quantization!")
