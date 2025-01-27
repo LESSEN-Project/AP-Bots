@@ -93,24 +93,20 @@ class LLM:
         
     def get_model_type(self):
 
-        if self.model_name.endswith("AWQ"):
-            return "AWQ"
-        elif self.model_name.endswith("PPLX"):
-            return "PPLX"
-        elif self.model_name.endswith("GROQ"):
+        if self.model_name.endswith("GROQ"):
             return "GROQ"
-        elif self.model_name.endswith("TGTR"):
-            return "TGTR"
         elif self.model_name.endswith("GGUF"):
             return "GGUF"
+        elif self.model_name.endswith("DSAPI"):
+            return "DSAPI"
         elif self.family in ["CLAUDE", "GPT", "GEMINI"]:
-            return "proprietary"
+            return "proprietary"  
         else:
             return "default"
         
     def init_tokenizer(self):
 
-        if self.model_type in ["AWQ", "GPTQ", "PPLX", "GROQ", "TGTR", "GGUF"]:
+        if self.model_type in ["GROQ", "GGUF", "DSAPI"]:
             return AutoTokenizer.from_pretrained(self.cfg.get("tokenizer"), use_fast=True)
         elif self.model_type == "proprietary":
             return None
@@ -121,7 +117,7 @@ class LLM:
 
         if self.family == "GEMINI":
             self.name_token_var = "max_output_tokens"
-        elif self.model_type in ["PPLX", "GROQ", "TGTR", "proprietary", "GGUF"]:
+        elif self.model_type in ["proprietary", "GGUF", "DSAPI"]:
             self.name_token_var = "max_tokens"
         else:
             self.name_token_var = "max_new_tokens"
@@ -138,21 +134,16 @@ class LLM:
     def get_model_params(self, model_params):
 
         if model_params is None:
-            if self.model_type == "PPLX":
-                return {
-                    "base_url": "https://api.perplexity.ai",
-                    "api_key": os.getenv("PPLX_API_KEY")
-                }
-            elif self.model_type == "GROQ":
+            if self.model_type == "GROQ":
                 return {
                     "base_url": "https://api.groq.com/openai/v1",
                     "api_key": os.getenv("GROQ_API_KEY")
-                }
-            elif self.model_type == "TGTR":
+                }   
+            elif self.model_type == "DSAPI":
                 return {
-                    "base_url": "https://api.together.xyz/v1",
-                    "api_key": os.getenv("TOGETHER_API_KEY")
-                }                           
+                    "base_url": "https://api.deepseek.com",
+                    "api_key": os.getenv("DEEPSEEK_API_KEY")
+                }                     
             elif self.family == "CLAUDE":
                 return {
                     "api_key": os.getenv("ANTHROPIC_API_KEY")
@@ -165,6 +156,7 @@ class LLM:
                 return {
                     "api_key": os.getenv("GOOGLE_API_KEY")
                 }
+
             elif self.model_type == "GGUF":
                 return {
                     "n_gpu_layers": -1,
@@ -180,7 +172,7 @@ class LLM:
 
         if self.family == "CLAUDE":
             return Anthropic(**self.model_params)
-        elif self.family == "GPT" or self.model_type in ["PPLX", "TGTR", "GROQ"]:
+        elif self.family == "GPT" or self.model_type in ["GROQ", "DSAPI"]:
             return OpenAI(**self.model_params)       
         elif self.family == "GEMINI":
             genai.configure(**self.model_params)
@@ -216,10 +208,14 @@ class LLM:
         else:
             gen_params = self.get_gen_params(gen_params)
 
-        if self.model_type in ["PPLX", "GROQ", "TGTR"] or self.family == "GPT":
+        if self.model_type in ["GROQ", "DSAPI"] or self.family == "GPT":
 
             response = self.model.chat.completions.create(model=self.repo_id, messages=prompt, **gen_params)
-            response = response.choices[0].message.content
+            output = response.choices[0].message.content
+
+            if self.model_type == "DSAPI" and self.cfg.get("reason"):
+                reasoning_steps = response.choices[0].message.reasoning_content
+                output = f"**Thinking**...\n\n\n{reasoning_steps}\n\n\n**Finished thinking!**\n\n\n{output}"
 
         elif self.family == "CLAUDE":
 
@@ -234,7 +230,7 @@ class LLM:
             else:
                 response = self.model.messages.create(model=self.repo_id, messages=prompt, **gen_params)
 
-            response = response.content[0].text   
+            output = response.content[0].text   
 
         elif self.family == "GEMINI":
 
@@ -246,7 +242,7 @@ class LLM:
                     "parts": [turn["content"]]
                 })
             response = self.model.generate_content(messages, generation_config=genai.types.GenerationConfig(**gen_params))
-            response = response.text 
+            output = output.text 
 
         else:
 
@@ -256,9 +252,9 @@ class LLM:
 
             if self.model_type == "GGUF":
                 response = self.model.create_chat_completion(prompt, **gen_params)
-                response = response["choices"][-1]["message"]["content"]
+                output = response["choices"][-1]["message"]["content"]
             else:
                 pipe = pipeline("text-generation", model=self.model, tokenizer=self.tokenizer, **gen_params)
-                response = pipe(prompt)[0]["generated_text"][-1]["content"]
+                output = pipe(prompt)[0]["generated_text"][-1]["content"]
 
-        return response
+        return output

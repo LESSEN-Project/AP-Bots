@@ -4,40 +4,66 @@ from vectordb import VectorDB
 from AP_Bots.models import LLM
 from datetime import datetime
 
-from AP_Bots.app.utils import set_wide_sidebar, stream_output, get_all_bots, reset_session_state, get_conv_topic
+from AP_Bots.app.utils import (
+    stream_output,
+    get_all_bots,
+    reset_session_state,
+    get_conv_topic
+)
+from AP_Bots.app.st_css_style import set_wide_sidebar
 
-MAX_TOKENS = 128
+# ------- Style adjustments for smaller, uniform buttons -------
+st.markdown(
+    """
+    <style>
+    /* Target all Streamlit button types including form submits */
+    button[data-baseweb="button"], 
+    .stButton button,
+    button[type="submit"] {
+        font-size: 0.8rem !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+# -------------------------------------------------------------
+
+MAX_TITLE_TOKENS = 32
+MAX_GEN_TOKENS = 256
 
 all_bots = get_all_bots()
-title_gen_bot = LLM("GPT-4o-mini", gen_params={"max_new_tokens": MAX_TOKENS//4})
+title_gen_bot = LLM("GPT-4o-mini", gen_params={"max_new_tokens": MAX_TITLE_TOKENS})
 
+# Ensure DB instance in session state
 if "db" not in st.session_state:
     st.session_state.db = VectorDB()
 
 # Initialize default chatbot
 if "chatbot" not in st.session_state:
-    st.session_state.chatbot = LLM("GPT-4o-mini", gen_params={"max_new_tokens": MAX_TOKENS})
+    st.session_state.chatbot = LLM("GPT-4o-mini", gen_params={"max_new_tokens": MAX_GEN_TOKENS})
 
-# Authentication Flow
+# -------------------- AUTHENTICATION FLOW --------------------
 if "logged_in" not in st.session_state:
-    # Hide sidebar completely for auth pages
-    st.markdown("""
+    # Hide sidebar on login pages
+    st.markdown(
+        """
         <style>
             section[data-testid="stSidebar"] {
                 display: none !important;
             }
         </style>
-    """, unsafe_allow_html=True)
-    
-    # Auth state management
+        """,
+        unsafe_allow_html=True
+    )
+
     if 'auth_mode' not in st.session_state:
         st.session_state.auth_mode = 'login'
 
-    # Centered auth container
     with st.container():
         col1, col2, col3 = st.columns([1, 3, 1])
         with col2:
-            st.title("AP-Bot Login")
+            st.title("Login")
             st.markdown("---")
 
             # Login Panel
@@ -108,6 +134,7 @@ else:
     
     # Chatbot Selection
     current_bot = st.session_state.chatbot.model_name
+    all_bots = get_all_bots()  # Ensure updated bot list
     if all_bots:
         with st.expander("🤖 Chatbot Selection", expanded=True):
             try:
@@ -128,21 +155,11 @@ else:
     else:
         st.error("No chatbots available")
 
-    # User sidebar
+    # --------------------- SIDEBAR -----------------------------
     with st.sidebar:
         st.title(f"Welcome, {st.session_state.username}!")
-        st.markdown("---")
-        
-        # Chat Management
-        if st.button("🧹 New Chat", use_container_width=True):
-            if "conv_id" in st.session_state:
-                st.session_state.db.delete_conversation(st.session_state.conv_id)
-                del st.session_state["conv_id"]
-            st.session_state.messages = []
-            st.toast("New chat session started")
 
-        # Account Management
-        with st.expander("⚙️ Account Settings", expanded=True):
+        with st.expander("⚙️ Account Settings", expanded=False):
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("🔐 Change Password", use_container_width=True):
@@ -153,7 +170,8 @@ else:
                 if st.button("🚪 Logout", use_container_width=True):
                     reset_session_state(st)
                     st.rerun()
-            
+
+            # Account Management
             if st.button("❌ Delete Account", use_container_width=True):
                 st.session_state.db.delete_user(st.session_state.user_id)
                 reset_session_state(st, full_reset=True)
@@ -161,12 +179,56 @@ else:
                 time.sleep(1)
                 st.rerun()
 
-    # Handle model reload
+        st.markdown("---")
+
+        # Chat Management
+        if st.button("🧹 New Chat", use_container_width=True):
+            # Instead of deleting the current conversation from the DB,
+            # just clear it from session state so we can start a fresh one.
+            if "conv_id" in st.session_state:
+                del st.session_state["conv_id"]
+            st.session_state.messages = []
+            st.toast("New chat session started")
+
+        # Past conversations
+        user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
+        st.subheader("Past Conversations")
+
+        for i, conv in enumerate(user_conversations):
+            col1, col2 = st.columns([8, 1], gap="small")
+
+            # Button to load conversation
+            with col1:
+                if st.button(conv["title"], key=f"load_conv_{conv['conv_id']}_{i}", use_container_width=True):
+                    st.session_state.conv_id = conv["conv_id"]
+                    loaded_messages = []
+                    for turn in conv["conversation"]:
+                        loaded_messages.append({"role": "user", "content": turn["user_message"]})
+                        loaded_messages.append({"role": "assistant", "content": turn["assistant_message"]})
+                    st.session_state.messages = loaded_messages
+                    st.toast(f"Conversation '{conv['title']}' loaded.")
+                    st.rerun()
+
+            # Red trash-can button to delete conversation
+            with col2:
+                if st.button("🗑️", key=f"del_conv_{conv['conv_id']}_{i}",
+                            help="Delete this conversation", use_container_width=True):
+                    st.session_state.db.delete_conversation(conv["conv_id"])
+                    # If deleting the currently loaded conversation, clear it
+                    if "conv_id" in st.session_state and st.session_state.conv_id == conv["conv_id"]:
+                        del st.session_state["conv_id"]
+                        st.session_state.messages = []
+                    st.toast(f"Conversation '{conv['title']}' deleted.")
+                    st.rerun()
+
+        st.markdown("---")
+
+    # --------------------- MODEL RELOAD -----------------------------
     if "pending_bot" in st.session_state:
         selected_bot = st.session_state.pending_bot
         with st.status(f"🚀 Loading {selected_bot}...", expanded=True) as status:
             try:
-                st.session_state.chatbot = LLM(selected_bot, gen_params={"max_new_tokens": MAX_TOKENS})
+                st.session_state.chatbot = LLM(selected_bot, gen_params={"max_new_tokens": MAX_GEN_TOKENS})
                 status.update(label=f"{selected_bot} loaded successfully!", state="complete")
                 del st.session_state["pending_bot"]
             except Exception as e:
@@ -174,7 +236,7 @@ else:
                 st.error(str(e))
                 del st.session_state["pending_bot"]
 
-    # Chat Interface
+    # --------------------- CHAT INTERFACE -----------------------------
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
@@ -212,9 +274,10 @@ else:
         }
 
         if "conv_id" not in st.session_state:
-            title = get_conv_topic(title_gen_bot, "\n".join(f"{m['role']}: {m['content']}" 
-                                                        for m in st.session_state.messages))
-            print(title)
+            title = get_conv_topic(
+                title_gen_bot, 
+                "\n".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages)
+            )
             st.session_state.conv_id = st.session_state.db.save_conversation(
                 user_id=st.session_state.user_id,
                 turn=turn_json,

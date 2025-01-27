@@ -4,20 +4,6 @@ import streamlit as st
 from AP_Bots.models import LLM
 from AP_Bots.prompts import conv_title_prompt
 
-def set_wide_sidebar():
-    st.markdown("""
-        <style>
-        section[data-testid="stSidebar"] {
-            min-width: 350px !important;
-        }
-        @media (max-width: 640px) {
-            section[data-testid="stSidebar"] {
-                min-width: 200px !important;
-            }
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
 
 def stream_output(output):
     for word in output:
@@ -46,5 +32,7 @@ def get_conv_topic(llm, conversation):
 
     prompt = conv_title_prompt(conversation)
     title = llm.generate(prompt)
+    title = title.strip('"')
+    title = title.strip('*')
 
-    return title.strip('"')
+    return title
