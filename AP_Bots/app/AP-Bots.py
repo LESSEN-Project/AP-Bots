@@ -32,7 +32,7 @@ st.markdown(
 MAX_TITLE_TOKENS = 32
 MAX_GEN_TOKENS = 256
 
-all_bots = get_all_bots()
+all_bots, available_bots = get_all_bots()
 title_gen_bot = LLM("GPT-4o-mini", gen_params={"max_new_tokens": MAX_TITLE_TOKENS})
 
 # Ensure DB instance in session state
@@ -134,17 +134,17 @@ else:
     
     # Chatbot Selection
     current_bot = st.session_state.chatbot.model_name
-    all_bots = get_all_bots()  # Ensure updated bot list
-    if all_bots:
+    all_bots, available_bots = get_all_bots()  # Ensure updated bot list
+    if available_bots:
         with st.expander("🤖 Chatbot Selection", expanded=True):
             try:
-                default_index = all_bots.index(current_bot)
+                default_index = available_bots.index(current_bot)
             except ValueError:
                 default_index = 0
                 
             selected_bot = st.selectbox(
                 "Active Chatbot",
-                options=all_bots,
+                options=available_bots,
                 index=default_index,
                 key="bot_selector",
                 label_visibility="collapsed"
@@ -159,6 +159,10 @@ else:
     with st.sidebar:
         st.title(f"Welcome, {st.session_state.username}!")
 
+        if st.button("🚪 Logout", use_container_width=True):
+            reset_session_state(st)
+            st.rerun()
+        
         with st.expander("⚙️ Account Settings", expanded=False):
             col1, col2 = st.columns(2)
             with col1:
@@ -167,17 +171,12 @@ else:
                     st.session_state.messages = []
                     st.rerun()
             with col2:
-                if st.button("🚪 Logout", use_container_width=True):
-                    reset_session_state(st)
+                if st.button("❌ Delete Account", use_container_width=True):
+                    st.session_state.db.delete_user(st.session_state.user_id)
+                    reset_session_state(st, full_reset=True)
+                    st.success("Account deleted")
+                    time.sleep(1)
                     st.rerun()
-
-            # Account Management
-            if st.button("❌ Delete Account", use_container_width=True):
-                st.session_state.db.delete_user(st.session_state.user_id)
-                reset_session_state(st, full_reset=True)
-                st.success("Account deleted")
-                time.sleep(1)
-                st.rerun()
 
         st.markdown("---")
 
@@ -192,6 +191,8 @@ else:
 
         # Past conversations
         user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
+        user_conversations = sorted(user_conversations, key = lambda x: x["end_time"], reverse=True)
+
         st.subheader("Past Conversations")
 
         for i, conv in enumerate(user_conversations):
