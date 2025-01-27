@@ -30,8 +30,6 @@ certifi==2024.2.2
 cffi==1.16.0
 chardet==5.2.0
 charset-normalizer==3.3.2
-chroma-hnswlib==0.7.3
-chromadb==0.4.24
 click==8.1.7
 cloudpathlib==0.19.0
 cohere==5.6.2
@@ -116,7 +114,6 @@ kiwisolver==1.4.5
 kubernetes==29.0.0
 language_data==1.2.0
 layoutparser==0.3.4
-llama_cpp_python==0.3.6
 lxml==5.1.0
 marisa-trie==1.2.0
 Markdown==3.5.2
@@ -242,7 +239,7 @@ scikit-learn==1.4.1.post1
 scipy==1.10.1
 sentence-transformers==3.0.1
 sentencepiece==0.2.0
-setuptools==8.0.4
+setuptools
 six==1.16.0
 smart-open==7.0.4
 smmap==5.0.1
@@ -272,7 +269,7 @@ tokenizers==0.19.1
 toml==0.10.2
 tomli==2.0.1
 torch==2.2.0
-torchaudio==2.2.1
+torchaudio==2.2.0
 torchvision==0.17.0
 tornado==6.4.2
 tqdm==4.66.2
