@@ -1,34 +1,19 @@
 import time
+from datetime import datetime
 import streamlit as st
 from vectordb import VectorDB
-from AP_Bots.models import LLM
-from datetime import datetime
 
+from AP_Bots.app.app_prompts import ap_bot_prompt
+from AP_Bots.models import LLM
 from AP_Bots.app.utils import (
     stream_output,
     get_all_bots,
     reset_session_state,
     get_conv_topic
 )
-from AP_Bots.app.st_css_style import set_wide_sidebar
+from AP_Bots.app.st_css_style import set_wide_sidebar, hide_sidebar, button_style
 
-# ------- Style adjustments for smaller, uniform buttons -------
-st.markdown(
-    """
-    <style>
-    /* Target all Streamlit button types including form submits */
-    button[data-baseweb="button"], 
-    .stButton button,
-    button[type="submit"] {
-        font-size: 0.8rem !important;
-        padding: 0.25rem 0.5rem !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-# -------------------------------------------------------------
-
+button_style()
 MAX_TITLE_TOKENS = 32
 MAX_GEN_TOKENS = 256
 
@@ -46,16 +31,7 @@ if "chatbot" not in st.session_state:
 # -------------------- AUTHENTICATION FLOW --------------------
 if "logged_in" not in st.session_state:
     # Hide sidebar on login pages
-    st.markdown(
-        """
-        <style>
-            section[data-testid="stSidebar"] {
-                display: none !important;
-            }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+    hide_sidebar()
 
     if 'auth_mode' not in st.session_state:
         st.session_state.auth_mode = 'login'
@@ -182,8 +158,6 @@ else:
 
         # Chat Management
         if st.button("🧹 New Chat", use_container_width=True):
-            # Instead of deleting the current conversation from the DB,
-            # just clear it from session state so we can start a fresh one.
             if "conv_id" in st.session_state:
                 del st.session_state["conv_id"]
             st.session_state.messages = []
@@ -256,9 +230,10 @@ else:
             
         with st.chat_message("assistant"):
             with st.spinner("Generating response..."):
-                response = st.session_state.chatbot.generate(
-                    prompt=[{"role": m["role"], "content": m["content"]} 
+                prompt = ap_bot_prompt() + [{"role": m["role"], "content": m["content"]} 
                            for m in st.session_state.messages]
+                response = st.session_state.chatbot.generate(
+                    prompt=prompt
                 )
                 response_stream = stream_output(response)
                 full_response = st.write_stream(response_stream)
@@ -270,7 +245,7 @@ else:
             "start_time": user_message_time,
             "end_time": datetime.now().isoformat(),
             "chatbot_name": st.session_state.chatbot.model_name,
-            "user_message": prompt,
+            "user_message": prompt[-1]["content"],
             "assistant_message": full_response
         }
 

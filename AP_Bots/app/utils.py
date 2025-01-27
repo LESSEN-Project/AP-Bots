@@ -3,8 +3,7 @@ import streamlit as st
 import GPUtil
 
 from AP_Bots.models import LLM
-from AP_Bots.prompts import conv_title_prompt
-
+from AP_Bots.app.app_prompts import conv_title_prompt
 
 def stream_output(output):
     for word in output:

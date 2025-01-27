@@ -7,7 +7,6 @@ warnings.filterwarnings("ignore")
 from huggingface_hub import login, logging, hf_hub_download
 logging.set_verbosity_error()
 import tiktoken
-from llama_cpp import Llama
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, logging, BitsAndBytesConfig
 logging.set_verbosity_error()
 
@@ -177,15 +176,6 @@ class LLM:
         elif self.family == "GEMINI":
             genai.configure(**self.model_params)
             return genai.GenerativeModel(self.repo_id)
-        elif self.model_type == "GGUF":
-            if os.getenv("HF_HOME") is None:
-                hf_cache_path = os.path.join(os.path.expanduser('~'), ".cache", "huggingface", "hub")
-            else:
-                hf_cache_path = os.getenv("HF_HOME")
-            model_path = os.path.join(hf_cache_path, self.file_name)
-            if not os.path.exists(model_path):
-                hf_hub_download(repo_id=self.repo_id, filename=self.file_name, local_dir=hf_cache_path)
-            return Llama(model_path=model_path, **self.model_params)
         else: 
             bnb_config = None
             if "quantization" in self.model_params:

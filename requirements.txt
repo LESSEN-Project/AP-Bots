@@ -12,9 +12,6 @@ APScheduler==3.10.4
 asgiref==3.7.2
 asttokens==2.4.1
 attrs==23.2.0
-auto_gptq==0.7.1
-autoawq==0.2.3
-autoawq_kernels==0.0.6
 backoff==2.2.1
 bcrypt==4.1.2
 beautifulsoup4==4.12.3
@@ -66,7 +63,7 @@ fastavro==1.9.4
 filelock==3.13.1
 filetype==1.2.0
 flatbuffers==23.5.26
-flit_core ==3.9.0
+flit_core==3.9.0
 fonttools==4.49.0
 frozenlist==1.4.1
 fsspec==2024.2.0
@@ -117,13 +114,6 @@ jsonschema==4.23.0
 jsonschema-specifications==2024.10.1
 kiwisolver==1.4.5
 kubernetes==29.0.0
-langchain==0.1.11
-langchain-community==0.0.27
-langchain-core==0.1.30
-langchain-text-splitters==0.0.1
-langcodes==3.4.0
-langdetect==1.0.9
-langsmith==0.1.23
 language_data==1.2.0
 layoutparser==0.3.4
 llama_cpp_python==0.3.6
@@ -252,7 +242,7 @@ scikit-learn==1.4.1.post1
 scipy==1.10.1
 sentence-transformers==3.0.1
 sentencepiece==0.2.0
-setuptools-scm==8.0.4
+setuptools==8.0.4
 six==1.16.0
 smart-open==7.0.4
 smmap==5.0.1
@@ -282,7 +272,7 @@ tokenizers==0.19.1
 toml==0.10.2
 tomli==2.0.1
 torch==2.2.0
-torchaudio==2.2.0
+torchaudio==2.2.1
 torchvision==0.17.0
 tornado==6.4.2
 tqdm==4.66.2
@@ -296,10 +286,6 @@ typing_extensions==4.12.2
 tzdata==2024.1
 tzlocal==5.2
 ujson==5.10.0
-unstructured==0.13.2
-unstructured-client==0.18.0
-unstructured-inference==0.7.23
-unstructured.pytesseract==0.3.12
 uritemplate==4.1.1
 urllib3==2.2.1
 uvicorn==0.28.0

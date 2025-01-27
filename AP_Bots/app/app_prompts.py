@@ -1,3 +1,11 @@
+
+def ap_bot_prompt():
+
+    return [{
+        "role": "system",
+        "content": "You are an adaptive, personalized assistant. You answer in a conversational style similar to the user's"
+    }]
+
 def conv_title_prompt(conversation):
 
     return [{
