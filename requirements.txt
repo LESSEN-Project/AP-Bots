@@ -243,7 +243,6 @@ python-telegram-bot==21.0.1
 pytube==15.0.0
 pytz==2024.1
 PyYAML==6.0.1
--e git+ssh://git@github.com/myazann/RAG.git@1b089e06203955d022da7cdaa9677af672a5b35d#egg=RAG
 rank-bm25==0.2.2
 rapidfuzz==3.6.1
 rdflib==7.0.0
