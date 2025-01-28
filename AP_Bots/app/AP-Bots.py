@@ -119,10 +119,12 @@ if "logged_in" not in st.session_state:
             st.write("")  # Empty space
             st.write("")  # More empty space
 
-            rand_logo = random.choice(os.listdir("app/logos"))
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            logos_dir = os.path.join(current_dir, "logos")
+            rand_logo = random.choice(os.listdir(logos_dir))
             
             st.image(
-                f"app/logos/{rand_logo}",
+                f"{logos_dir}/{rand_logo}",
                 # width=750,
                 use_container_width=True
             )
