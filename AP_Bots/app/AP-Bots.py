@@ -1,3 +1,4 @@
+
 import time
 import random
 import os
@@ -26,6 +27,7 @@ if "available_models" not in st.session_state:
     st.session_state.available_bots = available_bots
     st.session_state.model_gpu_req = model_gpu_req
     st.session_state.free_gpu_mem = free_gpu_mem
+    st.session_state.current_model_gpu = 0
 
 if "title_gen_bot" not in st.session_state: 
     st.session_state.title_gen_bot = LLM("GPT-4o-mini", gen_params={"max_new_tokens": MAX_TITLE_TOKENS})
@@ -47,13 +49,25 @@ if "logged_in" not in st.session_state:
         st.session_state.auth_mode = 'login'
 
     with st.container():
-        # Create two main columns: one for the form, one for the logo
-        col_form, col_logo = st.columns([2, 1])  # 3:1 ratio for form vs logo
+        # Main title spanning full width
+        st.title("Welcome to AP-Bots")
         
+        # Create two main columns
+        col_logo, col_form = st.columns([1, 1])
+        
+        with col_logo:
+            # Logo display
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            logos_dir = os.path.join(current_dir, "logos")
+            st.image(
+                f"{logos_dir}/logo_transparent.png",
+                use_container_width=True
+            )
+
         with col_form:
             # Login/Register Form
-            st.title("Login" if st.session_state.auth_mode == 'login' else "Register")
-            st.markdown("---")
+            st.subheader("Login" if st.session_state.auth_mode == 'login' else "New User Registration")
+            # st.markdown("---")
             
             if st.session_state.auth_mode == 'login':
                 with st.form("Login", clear_on_submit=True):
@@ -83,7 +97,7 @@ if "logged_in" not in st.session_state:
             
             elif st.session_state.auth_mode == 'signup':
                 with st.form("Sign Up", clear_on_submit=True):
-                    st.subheader("New User Registration")
+                    # st.subheader("New User Registration")
                     new_user = st.text_input("Choose Username", key="signup_uname")
                     new_pass = st.text_input("Choose Password", type="password", key="signup_pwd")
                     
@@ -113,21 +127,17 @@ if "logged_in" not in st.session_state:
                                     st.rerun()
                                 else:
                                     st.error(message)
-        
-        with col_logo:
-            # Add vertical space to align with the form content
-            st.write("")  # Empty space
-            st.write("")  # More empty space
 
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            logos_dir = os.path.join(current_dir, "logos")
-            rand_logo = random.choice(os.listdir(logos_dir))
-            
-            st.image(
-                f"{logos_dir}/{rand_logo}",
-                # width=750,
-                use_container_width=True
-            )
+        # App explanation below both columns
+        st.markdown("---")
+        st.subheader("About AP-Bots")
+        st.markdown("""
+        - *Extended personalization*
+        - *Adaptivity depending on context*
+        - *Conversation history tracking and management*
+        
+        *Choose from various state-of-the-art AI models and start chatting!*
+        """)
 
 # --------------------- MAIN APP INTERFACE -----------------------------
 else:
@@ -138,26 +148,22 @@ else:
 
     with st.expander("ℹ️ Resource Information", expanded=False):
         st.info(f"""
-        You currently have **{st.session_state.free_gpu_mem} GBs of GPU memory** available.
-        Some models may require more resources than currently available.
+        **Available GPU Memory:** {st.session_state.free_gpu_mem:.1f} GB
+        **Current Model Usage:** {st.session_state.current_model_gpu:.1f} GB
         """)
-        # Use a checkbox instead of nested expander
+        
         show_all_models = st.checkbox("Show all models and their GPU requirements")
         if show_all_models:
             st.write("**Model Requirements:**")
             for model in st.session_state.model_gpu_req:
                 req = st.session_state.model_gpu_req.get(model, "Unknown")
                 status = "🟢 Available" if model in st.session_state.available_bots else "🔴 Unavailable"
-                st.write(f"- **{model}**: {req} GBs ({status})")
-        st.caption("Note: GPU requirements are rough estimations and may vary slightly")
+                st.write(f"- **{model}**: {req} GB ({status})")
 
-    # all_bots, available_bots = get_all_bots()  # Ensure updated bot list
     if st.session_state.available_bots:
         with st.expander("🤖 Chatbot Selection", expanded=True):
-            try:
-                default_index = st.session_state.available_bots.index(current_bot)
-            except ValueError:
-                default_index = 0
+            # print(st.session_state.available_bots)
+            default_index = st.session_state.available_bots.index(current_bot)
                 
             selected_bot = st.selectbox(
                 "Active Chatbot",
@@ -206,27 +212,37 @@ else:
 
         # Past conversations
         user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
-        user_conversations = sorted(user_conversations, key = lambda x: x["end_time"], reverse=True)
+
+        if "conv_id" in st.session_state:
+            current_conv_id = st.session_state.conv_id
+            user_conversations = sorted(
+                user_conversations,
+                key=lambda x: (x["conv_id"] == current_conv_id, x["end_time"]),
+                reverse=True
+            )
+        else:
+            user_conversations = sorted(user_conversations, key=lambda x: x["end_time"], reverse=True)
 
         st.subheader("Past Conversations")
 
         for i, conv in enumerate(user_conversations):
             col1, col2 = st.columns([8, 1], gap="small")
 
+            is_current = "conv_id" in st.session_state and st.session_state.conv_id == conv["conv_id"]
+            button_label = f"➡️ {conv['title']}" if is_current else conv["title"]
+
             # Button to load conversation
-            with col1:                
-                if st.button(conv["title"], key=f"load_conv_{conv['conv_id']}_{i}", use_container_width=True):
+            with col1:
+                if st.button(button_label, key=f"load_conv_{conv['conv_id']}_{i}", use_container_width=True):
                     st.session_state.conv_id = conv["conv_id"]
                     loaded_messages = []
                     for turn in conv["conversation"]:
-                        print(turn["user_message"])
-                        print(turn["assistant_message"])
                         loaded_messages.append({"role": "user", "content": turn["user_message"]})
                         loaded_messages.append({"role": "assistant", "content": turn["assistant_message"]})
                     st.session_state.messages = loaded_messages
-                    st.toast(f"Conversation '{conv['title']}' loaded.")
+                    st.toast(f"Conversation {conv['title']} loaded.")
                     st.rerun()
-
+            
             # Red trash-can button to delete conversation
             with col2:
                 if st.button("🗑️", key=f"del_conv_{conv['conv_id']}_{i}",
@@ -244,14 +260,32 @@ else:
     # --------------------- MODEL RELOAD -----------------------------
     if "pending_bot" in st.session_state:
         selected_bot = st.session_state.pending_bot
+        new_model_req = st.session_state.model_gpu_req.get(selected_bot, 0)
+        
+        # Calculate actual available memory including the current model's allocation
+        available_mem = st.session_state.free_gpu_mem + st.session_state.current_model_gpu
+        
         with st.status(f"🚀 Loading {selected_bot}...", expanded=True) as status:
-            try:
+            if new_model_req <= available_mem:
+                
+                # Load the new model
                 st.session_state.chatbot = LLM(selected_bot, gen_params={"max_new_tokens": MAX_GEN_TOKENS})
+                
+                # Update memory tracking
+                st.session_state.current_model_gpu = new_model_req
+                st.session_state.free_gpu_mem = available_mem - new_model_req
+                
+                # Update available bots list only once
+                st.session_state.available_bots = [
+                    model for model, req in st.session_state.model_gpu_req.items()
+                    if req <= st.session_state.free_gpu_mem
+                ]
+                
                 status.update(label=f"{selected_bot} loaded successfully!", state="complete")
                 del st.session_state["pending_bot"]
-            except Exception as e:
-                status.update(label=f"Error loading {selected_bot}", state="error")
-                st.error(str(e))
+            else:
+                status.update(label=f"❌ Not enough GPU memory for {selected_bot}", state="error")
+                st.error(f"Required: {new_model_req}GB, Available: {available_mem}GB")
                 del st.session_state["pending_bot"]
 
     # --------------------- CHAT INTERFACE -----------------------------
@@ -273,10 +307,21 @@ else:
             
         with st.chat_message("assistant"):
             with st.spinner("Generating response..."):
-                prompt = ap_bot_prompt() + [{"role": m["role"], "content": m["content"]} 
-                           for m in st.session_state.messages]
+
+                all_past_convs = ""
+                for conv in user_conversations:
+                    if "title" in st.session_state and st.session_state.title == conv["title"]:
+                        continue                        
+                    cur_turn = f"Title: {conv['title']}\n"
+                    for turn in conv["conversation"]:
+                        cur_turn = f"{cur_turn}\nUser:{turn['user_message']}\nAssistant:{turn['assistant_message']}"
+                    all_past_convs = f"{all_past_convs}\n{cur_turn}"
+
+                cur_conv = "\n".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages)
+                pers_prompt = ap_bot_prompt(all_past_convs, cur_conv)
+
                 response = st.session_state.chatbot.generate(
-                    prompt=prompt
+                    prompt=pers_prompt
                 )
                 response_stream = stream_output(response)
                 full_response = st.write_stream(response_stream)
@@ -288,19 +333,19 @@ else:
             "start_time": user_message_time,
             "end_time": datetime.now().isoformat(),
             "chatbot_name": st.session_state.chatbot.model_name,
-            "user_message": prompt[-1]["content"],
+            "user_message": prompt,
             "assistant_message": full_response
         }
 
         if "conv_id" not in st.session_state:
-            title = get_conv_topic(
+            st.session_state.title = get_conv_topic(
                 st.session_state.title_gen_bot, 
-                "\n".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages)
+                cur_conv
             )
             st.session_state.conv_id = st.session_state.db.save_conversation(
                 user_id=st.session_state.user_id,
                 turn=turn_json,
-                title=title
+                title=st.session_state.title
             )
         else:
             st.session_state.db.update_conversation(

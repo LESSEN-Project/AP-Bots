@@ -1,16 +1,36 @@
-import GPUtil
-
 from AP_Bots.models import LLM
 
+import GPUtil
+import pynvml
+import os
 
 def get_available_GPUmem():
-
+    # Initialize NVML
+    pynvml.nvmlInit()
+    
     gpus = GPUtil.getGPUs()
     all_free_mem = 0
-    for gpu in gpus:
-        all_free_mem += gpu.memoryFree / 1024
+    current_process_mem = 0
     
-    return all_free_mem
+    for gpu in gpus:
+        # Add available free memory
+        all_free_mem += gpu.memoryFree / 1024
+        
+        # Get handle for the GPU
+        handle = pynvml.nvmlDeviceGetHandleByIndex(gpu.id)
+        
+        # Get current process memory usage
+        current_pid = os.getpid()
+        processes = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
+        for process in processes:
+            if process.pid == current_pid:
+                current_process_mem += process.usedGpuMemory / (1024**3)  # Convert to GB
+
+    # Shutdown NVML
+    pynvml.nvmlShutdown()
+    
+    # Return the sum of both rounded
+    return round(all_free_mem + current_process_mem, 1)
 
 def get_llm_config():
     return LLM.get_cfg()
