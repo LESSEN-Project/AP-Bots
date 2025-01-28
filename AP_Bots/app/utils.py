@@ -6,6 +6,7 @@ from AP_Bots.models import LLM
 from AP_Bots.app.app_prompts import conv_title_prompt
 
 def stream_output(output):
+
     for word in output:
         yield word
         time.sleep(0.005)
@@ -24,7 +25,7 @@ def get_all_bots():
     all_free_mem = get_available_GPUmem()
     LLM_config = LLM.get_model_cfg()
     all_models = [model for model in LLM_config.sections() if model != "DEFAULT"]
-    available_models = [model for model in LLM_config.sections() if int(LLM_config[model]["min_GPU_RAM"]) < all_free_mem]
+    available_models = [model for model in LLM_config.sections() if int(LLM_config[model]["min_GPU_RAM"]) <= all_free_mem]
 
     return all_models, available_models
 

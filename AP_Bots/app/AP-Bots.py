@@ -17,8 +17,13 @@ button_style()
 MAX_TITLE_TOKENS = 32
 MAX_GEN_TOKENS = 256
 
-all_bots, available_bots = get_all_bots()
-title_gen_bot = LLM("GPT-4o-mini", gen_params={"max_new_tokens": MAX_TITLE_TOKENS})
+if "all_bots" not in st.session_state:
+    all_bots, available_bots = get_all_bots()
+    st.session_state.all_bots = all_bots
+    st.session_state.available_bots = available_bots
+
+if "title_gen_bot" not in st.session_state: 
+    st.session_state.title_gen_bot = LLM("GPT-4o-mini", gen_params={"max_new_tokens": MAX_TITLE_TOKENS})
 
 # Ensure DB instance in session state
 if "db" not in st.session_state:
@@ -110,17 +115,17 @@ else:
     
     # Chatbot Selection
     current_bot = st.session_state.chatbot.model_name
-    all_bots, available_bots = get_all_bots()  # Ensure updated bot list
-    if available_bots:
+    # all_bots, available_bots = get_all_bots()  # Ensure updated bot list
+    if st.session_state.available_bots:
         with st.expander("🤖 Chatbot Selection", expanded=True):
             try:
-                default_index = available_bots.index(current_bot)
+                default_index = st.session_state.available_bots.index(current_bot)
             except ValueError:
                 default_index = 0
                 
             selected_bot = st.selectbox(
                 "Active Chatbot",
-                options=available_bots,
+                options=st.session_state.available_bots,
                 index=default_index,
                 key="bot_selector",
                 label_visibility="collapsed"
@@ -251,7 +256,7 @@ else:
 
         if "conv_id" not in st.session_state:
             title = get_conv_topic(
-                title_gen_bot, 
+                st.session_state.title_gen_bot, 
                 "\n".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages)
             )
             st.session_state.conv_id = st.session_state.db.save_conversation(
