@@ -42,3 +42,14 @@ def button_style():
     """,
     unsafe_allow_html=True
     )
+
+def checkbox_font():
+
+        st.markdown(
+        """<style>
+        div[data-testid="stCheckbox"] label p {
+            font-size: 14px !important;
+        }
+        </style>""",
+        unsafe_allow_html=True
+        )

@@ -7,20 +7,23 @@ from AP_Bots.app.app_prompts import ap_bot_prompt
 from AP_Bots.models import LLM
 from AP_Bots.app.utils import (
     stream_output,
-    get_all_bots,
     reset_session_state,
     get_conv_topic
 )
-from AP_Bots.app.st_css_style import set_wide_sidebar, hide_sidebar, button_style
+from AP_Bots.app.bots import get_avail_bots
+from AP_Bots.app.st_css_style import set_wide_sidebar, hide_sidebar, button_style, checkbox_font
 
 button_style()
+checkbox_font()
 MAX_TITLE_TOKENS = 32
 MAX_GEN_TOKENS = 256
 
-if "all_bots" not in st.session_state:
-    all_bots, available_bots = get_all_bots()
-    st.session_state.all_bots = all_bots
+if "available_models" not in st.session_state:
+
+    available_bots, model_gpu_req, free_gpu_mem = get_avail_bots()
     st.session_state.available_bots = available_bots
+    st.session_state.model_gpu_req = model_gpu_req
+    st.session_state.free_gpu_mem = free_gpu_mem
 
 if "title_gen_bot" not in st.session_state: 
     st.session_state.title_gen_bot = LLM("GPT-4o-mini", gen_params={"max_new_tokens": MAX_TITLE_TOKENS})
@@ -113,8 +116,23 @@ else:
     set_wide_sidebar()
     st.title("AP-Bot")
     
-    # Chatbot Selection
     current_bot = st.session_state.chatbot.model_name
+
+    with st.expander("ℹ️ Resource Information", expanded=False):
+        st.info(f"""
+        You currently have **{st.session_state.free_gpu_mem} GBs of GPU memory** available.
+        Some models may require more resources than currently available.
+        """)
+        # Use a checkbox instead of nested expander
+        show_all_models = st.checkbox("Show all models and their GPU requirements")
+        if show_all_models:
+            st.write("**Model Requirements:**")
+            for model in st.session_state.model_gpu_req:
+                req = st.session_state.model_gpu_req.get(model, "Unknown")
+                status = "🟢 Available" if model in st.session_state.available_bots else "🔴 Unavailable"
+                st.write(f"- **{model}**: {req} GBs ({status})")
+        st.caption("Note: GPU requirements are rough estimations and may vary slightly")
+
     # all_bots, available_bots = get_all_bots()  # Ensure updated bot list
     if st.session_state.available_bots:
         with st.expander("🤖 Chatbot Selection", expanded=True):
@@ -178,11 +196,13 @@ else:
             col1, col2 = st.columns([8, 1], gap="small")
 
             # Button to load conversation
-            with col1:
+            with col1:                
                 if st.button(conv["title"], key=f"load_conv_{conv['conv_id']}_{i}", use_container_width=True):
                     st.session_state.conv_id = conv["conv_id"]
                     loaded_messages = []
                     for turn in conv["conversation"]:
+                        print(turn["user_message"])
+                        print(turn["assistant_message"])
                         loaded_messages.append({"role": "user", "content": turn["user_message"]})
                         loaded_messages.append({"role": "assistant", "content": turn["assistant_message"]})
                     st.session_state.messages = loaded_messages
