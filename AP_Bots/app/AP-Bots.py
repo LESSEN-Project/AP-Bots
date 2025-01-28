@@ -1,4 +1,6 @@
 import time
+import random
+import os
 from datetime import datetime
 import streamlit as st
 from vectordb import VectorDB
@@ -45,12 +47,14 @@ if "logged_in" not in st.session_state:
         st.session_state.auth_mode = 'login'
 
     with st.container():
-        col1, col2, col3 = st.columns([1, 3, 1])
-        with col2:
-            st.title("Login")
+        # Create two main columns: one for the form, one for the logo
+        col_form, col_logo = st.columns([2, 1])  # 3:1 ratio for form vs logo
+        
+        with col_form:
+            # Login/Register Form
+            st.title("Login" if st.session_state.auth_mode == 'login' else "Register")
             st.markdown("---")
-
-            # Login Panel
+            
             if st.session_state.auth_mode == 'login':
                 with st.form("Login", clear_on_submit=True):
                     username = st.text_input("Username", key="login_uname")
@@ -76,8 +80,7 @@ if "logged_in" not in st.session_state:
                                 st.rerun()
                             else:
                                 st.error(message)
-
-            # Sign-up Panel
+            
             elif st.session_state.auth_mode == 'signup':
                 with st.form("Sign Up", clear_on_submit=True):
                     st.subheader("New User Registration")
@@ -110,6 +113,19 @@ if "logged_in" not in st.session_state:
                                     st.rerun()
                                 else:
                                     st.error(message)
+        
+        with col_logo:
+            # Add vertical space to align with the form content
+            st.write("")  # Empty space
+            st.write("")  # More empty space
+
+            rand_logo = random.choice(os.listdir("app/logos"))
+            
+            st.image(
+                f"app/logos/{rand_logo}",
+                # width=750,
+                use_container_width=True
+            )
 
 # --------------------- MAIN APP INTERFACE -----------------------------
 else:
