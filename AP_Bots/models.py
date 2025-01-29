@@ -1,13 +1,15 @@
 import configparser
 import os
+from threading import Thread
 from pathlib import Path
 import warnings
 warnings.filterwarnings("ignore")
 
+
 from huggingface_hub import login, logging, hf_hub_download
 logging.set_verbosity_error()
 import tiktoken
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, logging, BitsAndBytesConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, logging, BitsAndBytesConfig, AsyncTextIteratorStreamer
 logging.set_verbosity_error()
 
 from openai import OpenAI
@@ -237,7 +239,7 @@ class LLM:
             output = output.text 
 
         else:
-
+            
             if self.family in ["MISTRAL", "GEMMA"]:
                 if len(prompt) > 1:
                     prompt = [{"role": "user", "content": "\n".join([turn["content"] for turn in prompt])}]
@@ -246,7 +248,27 @@ class LLM:
                 response = self.model.create_chat_completion(prompt, **gen_params)
                 output = response["choices"][-1]["message"]["content"]
             else:
-                pipe = pipeline("text-generation", model=self.model, tokenizer=self.tokenizer, **gen_params)
+                if stream:
+                    return self.stream_hf_output(prompt, gen_params)
+                else:
+                    streamer = None
+                pipe = pipeline("text-generation", model=self.model, tokenizer=self.tokenizer, streamer=streamer, **gen_params)
                 output = pipe(prompt)[0]["generated_text"][-1]["content"]
 
         return output
+    
+    async def stream_hf_output(self, prompt, gen_params):
+
+        streamer = AsyncTextIteratorStreamer(self.tokenizer, skip_prompt=True)
+
+        # if isinstance(prompt, list):  
+        #     prompt = self.tokenizer.apply_chat_template(prompt, tokenize=False, add_generation_prompt=True)
+
+        pipe = pipeline("text-generation", model=self.model, tokenizer=self.tokenizer, streamer=streamer, **gen_params)
+        thread = Thread(target=pipe, args=(prompt,))
+        thread.start()
+
+        async for token in streamer:
+            if token in ["<end_of_turn>", "<eot>", "<eos>", "<|eot_id|>"]:
+                continue
+            yield token

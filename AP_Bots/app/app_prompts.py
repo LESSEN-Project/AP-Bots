@@ -11,7 +11,7 @@ def ap_bot_prompt(prev_convs, cur_conv):
         <previous_conversations>
         {prev_convs}
         </previous_conversations>
-        Analyze their conversation style, and answer their last message in the current conversation in their style.
+        Analyze their conversation style, and answer their last message in the current conversation in their style. If no previous conversation is available, derive their style from the current conversation.
         <current_conversation>
         {cur_conv}
         </current_conversation>"""

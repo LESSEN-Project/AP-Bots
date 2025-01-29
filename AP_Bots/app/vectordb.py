@@ -87,7 +87,7 @@ class VectorDB:
         return self.embedder.encode_documents(text)[0]
 
     def get_all_user_convs(self, user_id):
-        return self.client.query(collection_name="chat_history", filter="user_id == {user_id}", consistency_level="Strong")
+        return self.client.query(collection_name="chat_history", filter=f"user_id == {user_id}", consistency_level="Strong")
 
     def save_conversation(self, user_id, turn, title):
 

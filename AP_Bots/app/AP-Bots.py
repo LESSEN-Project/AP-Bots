@@ -184,7 +184,8 @@ else:
         st.title(f"Welcome, {st.session_state.username}!")
 
         if st.button("🚪 Logout", use_container_width=True):
-            reset_session_state(st)
+            # reset_session_state(st)
+            st.session_state.clear()
             st.rerun()
         
         with st.expander("⚙️ Account Settings", expanded=False):
@@ -330,7 +331,6 @@ else:
             
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-        # Save conversation
         turn_json = {
             "start_time": user_message_time,
             "end_time": datetime.now().isoformat(),

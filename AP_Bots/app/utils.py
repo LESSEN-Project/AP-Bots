@@ -11,7 +11,7 @@ def stream_output(output):
 
 def reset_session_state(st, full_reset=False):
     
-    preserved_keys = ['db', 'all_bots'] if not full_reset else []
+    preserved_keys = ['db'] if not full_reset else []
     preserved = {key: st.session_state[key] for key in preserved_keys if key in st.session_state}
     st.session_state.clear()
     
