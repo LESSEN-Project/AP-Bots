@@ -1,38 +1,32 @@
+import os
+from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlDeviceGetComputeRunningProcesses, nvmlShutdown, nvmlDeviceGetCount
+
 from AP_Bots.models import LLM
 
-import GPUtil
-import pynvml
-import os
-
 def get_available_GPUmem():
-    
-    gpus = GPUtil.getGPUs()
 
-    if not gpus:
+    try:
+        nvmlInit()
+        device_count = nvmlDeviceGetCount()
+    except Exception as e:
+        print(e)
         return 0
 
-    pynvml.nvmlInit()
     all_free_mem = 0
     current_process_mem = 0
-    
-    for gpu in gpus:
-        # Add available free memory
-        all_free_mem += gpu.memoryFree / 1024
-        
-        # Get handle for the GPU
-        handle = pynvml.nvmlDeviceGetHandleByIndex(gpu.id)
-        
-        # Get current process memory usage
-        current_pid = os.getpid()
-        processes = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
+    current_pid = os.getpid()
+
+    for i in range(device_count):
+        handle = nvmlDeviceGetHandleByIndex(i)
+        mem_info = nvmlDeviceGetMemoryInfo(handle)
+        all_free_mem += mem_info.free / 1024**3
+
+        processes = nvmlDeviceGetComputeRunningProcesses(handle)
         for process in processes:
             if process.pid == current_pid:
-                current_process_mem += process.usedGpuMemory / (1024**3)  # Convert to GB
+                current_process_mem += process.usedGpuMemory / 1024**3
 
-    # Shutdown NVML
-    pynvml.nvmlShutdown()
-    
-    # Return the sum of both rounded
+    nvmlShutdown()
     return round(all_free_mem + current_process_mem, 1)
 
 def get_llm_config():
