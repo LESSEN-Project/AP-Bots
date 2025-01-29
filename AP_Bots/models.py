@@ -191,7 +191,7 @@ class LLM:
                     low_cpu_mem_usage=True,
                     device_map="auto")
 
-    def generate(self, prompt, stream=True, gen_params=None):
+    def generate(self, prompt, stream=False, gen_params=None):
 
         if not gen_params:
             gen_params = self.gen_params
@@ -200,27 +200,29 @@ class LLM:
 
         if self.model_type in ["GROQ", "DSAPI"] or self.family == "GPT":
 
-            response = self.model.chat.completions.create(model=self.repo_id, messages=prompt, **gen_params)
+            response = self.model.chat.completions.create(model=self.repo_id, messages=prompt, stream=stream, **gen_params)
+            if stream:
+                return response
+            
             output = response.choices[0].message.content
-
             if self.model_type == "DSAPI" and self.cfg.get("reason"):
                 reasoning_steps = response.choices[0].message.reasoning_content
                 output = f"**Thinking**...\n\n\n{reasoning_steps}\n\n\n**Finished thinking!**\n\n\n{output}"
 
         elif self.family == "CLAUDE":
 
-            if len(prompt) > 1:
-                if prompt[0]["role"] == "system":
-                    sys_msg = prompt[0]["content"]
-                    prompt = prompt[1:]
-                else:
-                    sys_msg = ""
-                response = self.model.messages.create(model=self.repo_id, messages=prompt, system=sys_msg, **gen_params)
-
+            if prompt[0]["role"] == "system":
+                sys_msg = prompt[0]["content"]
+                prompt = prompt[1:]
             else:
-                response = self.model.messages.create(model=self.repo_id, messages=prompt, **gen_params)
+                sys_msg = ""
 
-            output = response.content[0].text   
+            if stream:
+                stream = self.model.messages.stream(model=self.repo_id, messages=prompt, system=sys_msg, **gen_params).__enter__()
+                return stream.text_stream
+            else:
+                response = self.model.messages.create(model=self.repo_id, messages=prompt, system=sys_msg, **gen_params)
+                output = response.content[0].text   
 
         elif self.family == "GEMINI":
 

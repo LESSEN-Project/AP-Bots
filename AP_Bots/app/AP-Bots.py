@@ -3,6 +3,7 @@ import time
 import random
 import os
 from datetime import datetime
+from collections.abc import Iterable
 import streamlit as st
 from vectordb import VectorDB
 
@@ -19,7 +20,7 @@ from AP_Bots.app.st_css_style import set_wide_sidebar, hide_sidebar, button_styl
 button_style()
 checkbox_font()
 MAX_TITLE_TOKENS = 32
-MAX_GEN_TOKENS = 256
+MAX_GEN_TOKENS = 1024
 
 if "available_models" not in st.session_state:
 
@@ -321,10 +322,11 @@ else:
                 pers_prompt = ap_bot_prompt(all_past_convs, cur_conv)
 
                 response = st.session_state.chatbot.generate(
-                    prompt=pers_prompt
+                    prompt=pers_prompt, stream=True
                 )
-                response_stream = stream_output(response)
-                full_response = st.write_stream(response_stream)
+                if isinstance(response, str):
+                    response = stream_output(response)
+                full_response = st.write_stream(response)
             
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
