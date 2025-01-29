@@ -5,10 +5,13 @@ import pynvml
 import os
 
 def get_available_GPUmem():
-    # Initialize NVML
-    pynvml.nvmlInit()
     
     gpus = GPUtil.getGPUs()
+
+    if not gpus:
+        return 0
+
+    pynvml.nvmlInit()
     all_free_mem = 0
     current_process_mem = 0
     
