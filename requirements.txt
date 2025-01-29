@@ -112,6 +112,7 @@ jsonschema==4.23.0
 jsonschema-specifications==2024.10.1
 kiwisolver==1.4.5
 kubernetes==29.0.0
+langcodes==3.5.0
 language_data==1.2.0
 layoutparser==0.3.4
 lxml==5.1.0
