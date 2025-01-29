@@ -31,6 +31,7 @@ class FeatureProcessor():
         else:
             return [len(texts.split(" "))]
 
+    @staticmethod
     def get_sentiment_polarity(self, texts):
         if isinstance(texts, list):
             return [TextBlob(text).sentiment.polarity for text in texts]

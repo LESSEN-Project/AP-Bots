@@ -7,31 +7,20 @@ from collections.abc import Iterable
 import streamlit as st
 from vectordb import VectorDB
 
-from AP_Bots.app.app_prompts import ap_bot_prompt
-from AP_Bots.models import LLM
-from AP_Bots.app.utils import (
-    stream_output,
-    reset_session_state,
-    get_conv_topic
-)
-from AP_Bots.app.bots import get_avail_bots
+from AP_Bots.app.utils import stream_output
+from AP_Bots.app.chatbot import get_avail_llms, get_conv_topic, get_llm, get_prompt
 from AP_Bots.app.st_css_style import set_wide_sidebar, hide_sidebar, button_style, checkbox_font
 
 button_style()
 checkbox_font()
-MAX_TITLE_TOKENS = 32
-MAX_GEN_TOKENS = 1024
 
 if "available_models" not in st.session_state:
 
-    available_bots, model_gpu_req, free_gpu_mem = get_avail_bots()
+    available_bots, model_gpu_req, free_gpu_mem = get_avail_llms()
     st.session_state.available_bots = available_bots
     st.session_state.model_gpu_req = model_gpu_req
     st.session_state.free_gpu_mem = free_gpu_mem
     st.session_state.current_model_gpu = 0
-
-if "title_gen_bot" not in st.session_state: 
-    st.session_state.title_gen_bot = LLM("GPT-4o-mini", gen_params={"max_new_tokens": MAX_TITLE_TOKENS})
 
 # Ensure DB instance in session state
 if "db" not in st.session_state:
@@ -39,7 +28,7 @@ if "db" not in st.session_state:
 
 # Initialize default chatbot
 if "chatbot" not in st.session_state:
-    st.session_state.chatbot = LLM("GPT-4o-mini", gen_params={"max_new_tokens": MAX_GEN_TOKENS})
+    st.session_state.chatbot = get_llm()
 
 # -------------------- AUTHENTICATION FLOW --------------------
 if "logged_in" not in st.session_state:
@@ -184,7 +173,6 @@ else:
         st.title(f"Welcome, {st.session_state.username}!")
 
         if st.button("🚪 Logout", use_container_width=True):
-            # reset_session_state(st)
             st.session_state.clear()
             st.rerun()
         
@@ -198,7 +186,7 @@ else:
             with col2:
                 if st.button("❌ Delete Account", use_container_width=True):
                     st.session_state.db.delete_user(st.session_state.user_id)
-                    reset_session_state(st, full_reset=True)
+                    st.session_state.clear()
                     st.success("Account deleted")
                     time.sleep(1)
                     st.rerun()
@@ -271,7 +259,7 @@ else:
             if new_model_req <= available_mem:
                 
                 # Load the new model
-                st.session_state.chatbot = LLM(selected_bot, gen_params={"max_new_tokens": MAX_GEN_TOKENS})
+                st.session_state.chatbot = get_llm(selected_bot)
                 
                 # Update memory tracking
                 st.session_state.current_model_gpu = new_model_req
@@ -309,18 +297,8 @@ else:
             
         with st.chat_message("assistant"):
             with st.spinner("Generating response..."):
-
-                all_past_convs = ""
-                for conv in user_conversations:
-                    if "title" in st.session_state and st.session_state.title == conv["title"]:
-                        continue                        
-                    cur_turn = f"Title: {conv['title']}\n"
-                    for turn in conv["conversation"]:
-                        cur_turn = f"{cur_turn}\nUser:{turn['user_message']}\nAssistant:{turn['assistant_message']}"
-                    all_past_convs = f"{all_past_convs}\n{cur_turn}"
-
-                cur_conv = "\n".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages)
-                pers_prompt = ap_bot_prompt(all_past_convs, cur_conv)
+                
+                pers_prompt = get_prompt(st.session_state, user_conversations)
 
                 response = st.session_state.chatbot.generate(
                     prompt=pers_prompt, stream=True
@@ -340,10 +318,7 @@ else:
         }
 
         if "conv_id" not in st.session_state:
-            st.session_state.title = get_conv_topic(
-                st.session_state.title_gen_bot, 
-                cur_conv
-            )
+            st.session_state.title = get_conv_topic("\n".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages))
             st.session_state.conv_id = st.session_state.db.save_conversation(
                 user_id=st.session_state.user_id,
                 turn=turn_json,

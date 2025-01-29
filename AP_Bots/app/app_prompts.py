@@ -3,7 +3,7 @@ def ap_bot_prompt(prev_convs, cur_conv):
 
     return [{
         "role": "system",
-        "content": "You are an adaptive, personalized assistant. You answer in a conversational style similar to the user. You are allowed use colloquial language and swear words as long as you don't insult the user."
+        "content": "You are an adaptive, personalized assistant. You answer in a conversational style similar to the user. You are allowed to use swear words as long as you don't insult the user."
     },
     {
         "role": "user",

@@ -1,7 +1,28 @@
 import os
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlDeviceGetComputeRunningProcesses, nvmlShutdown, nvmlDeviceGetCount
 
+from AP_Bots.app.app_prompts import conv_title_prompt, ap_bot_prompt
 from AP_Bots.models import LLM
+
+
+def get_llm(model_name="GPT-4o-mini", gen_params={"max_new_tokens": 1024}):
+    return LLM(model_name, gen_params=gen_params)
+
+def get_prompt(session_state, user_conversations):
+
+    all_past_convs = ""
+    for conv in user_conversations:
+        if "title" in session_state and session_state.title == conv["title"]:
+            continue                        
+        cur_turn = f"Title: {conv['title']}\n"
+        for turn in conv["conversation"]:
+            cur_turn = f"{cur_turn}\nUser:{turn['user_message']}\nAssistant:{turn['assistant_message']}"
+        all_past_convs = f"{all_past_convs}\n{cur_turn}"
+
+    cur_conv = "\n".join(f"{m['role']}: {m['content']}" for m in session_state.messages)
+    pers_prompt = ap_bot_prompt(all_past_convs, cur_conv)
+
+    return pers_prompt
 
 def get_available_GPUmem():
 
@@ -37,10 +58,20 @@ def get_model_gpu_req():
     cfg = get_llm_config()
     return {model: int(cfg[model]["min_GPU_RAM"]) for model in cfg.sections() if model != "DEFAULT"}
 
-def get_avail_bots():
+def get_avail_llms():
 
     free_gpu_mem = get_available_GPUmem()
     model_gpu_req = get_model_gpu_req()
     available_models = [model for model in model_gpu_req.keys() if model_gpu_req[model] <= free_gpu_mem]
 
     return available_models, model_gpu_req, free_gpu_mem
+
+def get_conv_topic(conversation):
+
+    llm = get_llm(gen_params={"max_new_tokens": 32})
+    prompt = conv_title_prompt(conversation)
+    title = llm.generate(prompt)
+    title = title.strip('"')
+    title = title.strip('*')
+
+    return title
