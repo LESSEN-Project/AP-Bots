@@ -21,11 +21,11 @@ class FeatureProcessor():
         nltk.download('punkt', quiet=True)      
         nltk.download('stopwords', quiet=True)  
         nltk.download('averaged_perceptron_tagger', quiet=True)
-        self.nlp = spacy.load("en_core_web_sm")
         self.save_loc = os.path.join("files", "features")
         os.makedirs(self.save_loc, exist_ok=True)
 
-    def get_sentence_length(self, texts):
+    @staticmethod
+    def get_sentence_length(texts):
         if isinstance(texts, list):
             return [len(text.split(" ")) for text in texts]
         else:
@@ -38,20 +38,22 @@ class FeatureProcessor():
         else:
             return [TextBlob(texts).sentiment.polarity]
 
-    def get_subjectivity(self, texts):
+    @staticmethod
+    def get_subjectivity(texts):
         if isinstance(texts, list):
             return [TextBlob(text).sentiment.subjectivity for text in texts]
         else:
             return [TextBlob(texts).sentiment.subjectivity]
     
-    def get_smog_index(self, texts):
+    @staticmethod
+    def get_smog_index(texts):
         if isinstance(texts, list):
             return [textstat.smog_index(text) for text in texts]
         else:
             return [textstat.smog_index(texts)]
                             
-    def get_adverb_usage(self, texts):
-
+    @staticmethod
+    def get_adverb_usage(texts):
         res = []
         if not isinstance(texts, list):
             texts = [texts]
@@ -64,8 +66,8 @@ class FeatureProcessor():
 
         return res
     
-    def get_adjective_usage(self, texts):
-
+    @staticmethod
+    def get_adjective_usage(texts):
         res = []
         if not isinstance(texts, list):
             texts = [texts]
@@ -78,8 +80,8 @@ class FeatureProcessor():
 
         return res
     
-    def get_pronoun_usage(self, texts):
-
+    @staticmethod
+    def get_pronoun_usage(texts):
         res = []
         if not isinstance(texts, list):
             texts = [texts]
@@ -92,8 +94,8 @@ class FeatureProcessor():
 
         return res
 
-    def get_word_frequency(self, texts):
-
+    @staticmethod
+    def get_word_frequency(texts):
         texts = " ".join(texts)
         words = word_tokenize(texts.lower())
         stop_words = set(stopwords.words('english'))
@@ -108,9 +110,9 @@ class FeatureProcessor():
         return sorted_word_freq_percentage
 
     def get_named_entity_freqency(self, texts):
-
         texts = " ".join(texts)
-        doc = self.nlp(texts)
+        nlp = spacy.load("en_core_web_sm")
+        doc = nlp(texts)
         named_entities = [(ent.text, ent.label_) for ent in doc.ents]
         
         entity_counter = Counter(named_entities)
@@ -124,9 +126,9 @@ class FeatureProcessor():
         return sorted_entities
     
     def get_dep_pattern_frequency(self, texts):
-
         texts = " ".join(texts)
-        doc = self.nlp(texts)
+        nlp = spacy.load("en_core_web_sm")
+        doc = nlp(texts)
         
         dependency_patterns = [(token.text, token.dep_) for token in doc]
         pattern_counter = Counter(dependency_patterns)
@@ -139,7 +141,8 @@ class FeatureProcessor():
 
         return sorted_patterns
     
-    def get_bfi_scores(self, texts):
+    @staticmethod
+    def get_bfi_scores(texts):
         if not isinstance(texts, list):
             texts = [texts]
 
