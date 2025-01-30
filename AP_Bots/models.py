@@ -5,7 +5,7 @@ from pathlib import Path
 import warnings
 warnings.filterwarnings("ignore")
 
-
+from llama_cpp import Llama
 from huggingface_hub import login, logging, hf_hub_download
 logging.set_verbosity_error()
 import tiktoken
@@ -178,6 +178,15 @@ class LLM:
         elif self.family == "GEMINI":
             genai.configure(**self.model_params)
             return genai.GenerativeModel(self.repo_id)
+        elif self.model_type == "GGUF":
+            if os.getenv("HF_HOME") is None:
+                hf_cache_path = os.path.join(os.path.expanduser('~'), ".cache", "huggingface", "hub")
+            else:
+                hf_cache_path = os.getenv("HF_HOME")
+            model_path = os.path.join(hf_cache_path, self.file_name)
+            if not os.path.exists(model_path):
+                hf_hub_download(repo_id=self.repo_id, filename=self.file_name, local_dir=hf_cache_path)
+            return Llama(model_path=model_path, **self.model_params)
         else: 
             bnb_config = None
             if "quantization" in self.model_params:
@@ -245,7 +254,7 @@ class LLM:
                     prompt = [{"role": "user", "content": "\n".join([turn["content"] for turn in prompt])}]
 
             if self.model_type == "GGUF":
-                response = self.model.create_chat_completion(prompt, **gen_params)
+                response = self.model.create_chat_completion(prompt, stream=False, **gen_params)
                 output = response["choices"][-1]["message"]["content"]
             else:
                 if stream:
@@ -266,7 +275,6 @@ class LLM:
         thread.start()
 
         async for token in streamer:
-            print(token)
             if token in ["<end_of_turn>", "<eot>", "<eos>", "<|eot_id|>", "<｜end▁of▁sentence｜>"]:
                 continue
             elif token.strip() == "<think>":
