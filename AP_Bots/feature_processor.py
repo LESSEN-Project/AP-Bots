@@ -10,6 +10,8 @@ import nltk
 from nltk.tokenize import word_tokenize
 from nltk import pos_tag
 from nltk.corpus import stopwords
+from transformers import pipeline
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 from AP_Bots.utils.output_parser import extract_bfi_scores
 
@@ -37,6 +39,21 @@ class FeatureProcessor():
             return [TextBlob(text).sentiment.polarity for text in texts]
         else:
             return [TextBlob(texts).sentiment.polarity]
+
+    @staticmethod
+    def get_vader_sent_polarity(texts):
+        analyzer = SentimentIntensityAnalyzer()
+        if isinstance(texts, list):
+            return [analyzer.polarity_scores(text) for text in texts]
+        else:
+            return [analyzer.polarity_scores(texts)]
+
+    @staticmethod
+    def get_bert_sentiment(texts):
+        sentiment_pipeline = pipeline("sentiment-analysis")
+        if not isinstance(texts, list):
+            texts = [texts]
+        return sentiment_pipeline(texts)
 
     @staticmethod
     def get_subjectivity(texts):

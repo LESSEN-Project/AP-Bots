@@ -5,11 +5,11 @@ import os
 from datetime import datetime
 from collections.abc import Iterable
 import streamlit as st
-from vectordb import VectorDB
 
+from AP_Bots.utils.output_parser import parse_json
+from AP_Bots.app.vectordb import VectorDB
 from AP_Bots.app.utils import stream_output
-from AP_Bots.app.user import get_sentiment_polarity
-from AP_Bots.app.chatbot import get_avail_llms, get_conv_topic, get_llm, get_prompt
+from AP_Bots.app.chatbot import get_avail_llms, get_conv_topic, get_llm, get_prompt, sent_analysis
 from AP_Bots.app.st_css_style import set_wide_sidebar, hide_sidebar, button_style, checkbox_font
 
 button_style()
@@ -310,8 +310,8 @@ else:
                     response = stream_output(response)
                 full_response = st.write_stream(response)
 
-                cur_sentiment = get_sentiment_polarity(prompt)
-                st.session_state.sentiment_tracker.append(cur_sentiment)
+                cur_sentiment = sent_analysis(prompt)
+                st.session_state.sentiment_tracker.append(parse_json(cur_sentiment))
                 print(st.session_state.sentiment_tracker)
             
         st.session_state.messages.append({"role": "assistant", "content": full_response})

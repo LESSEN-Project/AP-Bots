@@ -261,14 +261,16 @@ class LLM:
 
         streamer = AsyncTextIteratorStreamer(self.tokenizer, skip_prompt=True)
 
-        # if isinstance(prompt, list):  
-        #     prompt = self.tokenizer.apply_chat_template(prompt, tokenize=False, add_generation_prompt=True)
-
         pipe = pipeline("text-generation", model=self.model, tokenizer=self.tokenizer, streamer=streamer, **gen_params)
         thread = Thread(target=pipe, args=(prompt,))
         thread.start()
 
         async for token in streamer:
-            if token in ["<end_of_turn>", "<eot>", "<eos>", "<|eot_id|>"]:
+            print(token)
+            if token in ["<end_of_turn>", "<eot>", "<eos>", "<|eot_id|>", "<｜end▁of▁sentence｜>"]:
                 continue
+            elif token.strip() == "<think>":
+                yield "**Thinking..\n\n**"
+            elif token.strip() == "</think>":
+                yield "**\n\nFinished Thinking!**"
             yield token

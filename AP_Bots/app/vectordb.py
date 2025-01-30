@@ -8,8 +8,10 @@ from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, Milvus
 
 class VectorDB:
 
-    def __init__(self, uri="app/db/apbots.db"):
-        os.makedirs("app/db", exist_ok=True)
+    def __init__(self, uri="db/apbots.db"):
+
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        os.makedirs(f"{current_dir}/db", exist_ok=True)
         self.embedder = model.DefaultEmbeddingFunction()
         self.client = MilvusClient(uri=uri)
         self.initialize_db()
@@ -110,7 +112,6 @@ class VectorDB:
     def update_conversation(self, conv_id, turn):
 
         cur_conv = self.client.get("chat_history", ids=conv_id)
-        
         cur_conv[0]["end_time"] = datetime.now().isoformat()
         
         conv_hist = cur_conv[0]["conversation"]

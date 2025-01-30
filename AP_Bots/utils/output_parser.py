@@ -12,15 +12,6 @@ def parse_json(output):
                 output = output[:-3]
         output = json.loads(output, strict=False)["Title"]
     except Exception as e:
-        try:
-            match = re.search(r'"Title":\s*(.+)$', output, re.MULTILINE)
-            if match:
-                return match.group(1).strip().rstrip(',').strip()
-            else:
-                match = re.search(r'"title":\s*(.+)$', output, re.MULTILINE)
-                if match:
-                    return match.group(1).strip().rstrip(',').strip()
-        except Exception as e:
             print(output)
             print(e)
 

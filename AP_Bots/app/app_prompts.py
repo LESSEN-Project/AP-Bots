@@ -23,3 +23,26 @@ def conv_title_prompt(conversation):
         "role": "user",
         "content": f"Find a concise title for a conversation between a user and an assistant. Don't output anything except the title. Make it shorter than 7 words.\n{conversation}"
     }]
+
+def sent_analysis_prompt(text):
+
+    return [{
+        "role": "system",
+        "content": "You are a sentiment analysis model."
+    },
+    {
+        "role": "user",
+        "content": f"""Given a sentence, analyze its sentiment and return a JSON object with three scores between 0 and 1 for the categories: positive, neutral, and negative. The sum of all three scores must equal 1.
+                       Input Format:
+                       A single sentence provided in natural language.
+                       Output Format:
+                       {{
+                        "positive": <float>,  
+                        "neutral": <float>,  
+                        "negative": <float>  
+                        }}
+                        Ensure that the scores are appropriately distributed based on the sentiment expressed in the input.
+                        Input:
+                        {text}
+                        Output:"""
+    }]
