@@ -8,12 +8,12 @@ from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, Milvus
 
 class VectorDB:
 
-    def __init__(self, uri="db/apbots.db"):
+    def __init__(self, uri="apbots.db"):
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
         os.makedirs(f"{current_dir}/db", exist_ok=True)
         self.embedder = model.DefaultEmbeddingFunction()
-        self.client = MilvusClient(uri=uri)
+        self.client = MilvusClient(uri=f"{current_dir}/db/{uri}")
         self.initialize_db()
 
     def initialize_db(self):

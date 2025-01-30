@@ -46,3 +46,27 @@ def sent_analysis_prompt(text):
                         {text}
                         Output:"""
     }]
+
+def style_analysis_prompt(messages):
+    return [{
+        "role": "system",
+        "content": "You are an expert in conversation style and personality analysis."
+    },
+    {
+        "role": "user",
+        "content": f"""Please analyze the messages provided below to determine the speaker’s conversation style, grammar usage, vocabulary complexity, average message length, and any other relevant features that characterize their personality and tone.
+
+                    Return your findings as a JSON object with, at minimum, these keys:
+                    {{
+                    "grammar_analysis": "",
+                    "vocabulary_analysis": "",
+                    "average_message_length": "",
+                    "tone_and_personality": "",
+                    "additional_observations": ""
+                    }}
+
+                    <messages>
+                    {messages}
+                    </messages>
+
+                    Be sure to maintain the specified JSON format in your final response. Each JSON key should contain a concise value."""}]

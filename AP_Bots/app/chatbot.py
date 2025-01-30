@@ -1,7 +1,12 @@
 import os
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlDeviceGetComputeRunningProcesses, nvmlShutdown, nvmlDeviceGetCount
 
-from AP_Bots.app.app_prompts import conv_title_prompt, ap_bot_prompt, sent_analysis_prompt
+from AP_Bots.app.app_prompts import (
+    conv_title_prompt,
+    ap_bot_prompt,
+    sent_analysis_prompt,
+    style_analysis_prompt
+)
 from AP_Bots.models import LLM
 
 
@@ -80,4 +85,10 @@ def sent_analysis(text):
 
     llm = get_llm("GPT-4o", gen_params={"max_new_tokens": 128})
     prompt = sent_analysis_prompt(text)
+    return llm.generate(prompt)
+
+def style_analysis(text):
+
+    llm = get_llm("GPT-4o", gen_params={"max_new_tokens": 256})
+    prompt = style_analysis_prompt(text)
     return llm.generate(prompt)

@@ -9,5 +9,5 @@ def softmax(x):
 
 def get_model_list():
 
-    return ["R1-DISTILL-QWEN-32B", "LLAMA-3.1-8B", "GEMMA-2-9B", "GEMMA-2-27B", 
+    return ["DEEPSEEK-R1-GGUF", "DEEPSEEK-R1-DISTILL-QWEN-32B-GGUF", "LLAMA-3.1-8B", "GEMMA-2-9B", "GEMMA-2-27B", 
             "LLAMA-3.3-70B", "MINISTRAL-8B-INSTRUCT", "LLAMA-3.2-3B", "GEMMA-2-2B"]

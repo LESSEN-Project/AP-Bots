@@ -10,10 +10,10 @@ def parse_json(output):
             output = output[idx:]
             if output.endswith("```"):
                 output = output[:-3]
-        output = json.loads(output, strict=False)["Title"]
+        output = json.loads(output, strict=False)
     except Exception as e:
-            print(output)
-            print(e)
+        print(output)
+        print(e)
 
     return output
 

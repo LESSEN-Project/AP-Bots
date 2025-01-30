@@ -125,6 +125,7 @@ for model_name in LLMs:
         else:
 
             res = llm.generate(prompt, gen_params={"max_new_tokens": MAX_NEW_TOKENS})
+            print(res)
             end_bot_time = time.time()
             all_res.append({
                     "id": id,
