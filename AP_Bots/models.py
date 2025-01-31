@@ -161,7 +161,7 @@ class LLM:
             elif self.model_type == "GGUF":
                 return {
                     "n_gpu_layers": -1,
-                    "verbose": False,
+                    "verbose": True,
                     "n_ctx": self.context_length
                 }
             else:
@@ -192,7 +192,6 @@ class LLM:
             if not self.file_name.endswith("gguf"):
                 len_files = len(os.listdir(model_path))
                 model_path = f"{model_path}/{self.file_name}-00001-of-0000{len_files}.gguf"
-                print(model_path)
             return Llama(model_path=model_path, **self.model_params)
         else: 
             bnb_config = None

@@ -3,13 +3,12 @@ import time
 import json
 import sys
 import copy
-
 import torch 
 
-from models import LLM
-from prompts import prepare_res_prompt
-from feature_processor import FeatureProcessor
-from retriever import Retriever
+from AP_Bots.models import LLM
+from AP_Bots.prompts import prepare_res_prompt
+from AP_Bots.feature_processor import FeatureProcessor
+from AP_Bots.retriever import Retriever
 
 from AP_Bots.utils.argument_parser import parse_args
 from AP_Bots.utils.file_utils import oai_get_or_create_file
@@ -69,7 +68,7 @@ for model_name in LLMs:
         print("Batch openai jobs can only be done on the whole dataset!")
         continue
 
-    MAX_NEW_TOKENS = MAX_NEW_TOKENS * 20 if model_name.startswith("R1") else MAX_NEW_TOKENS
+    MAX_NEW_TOKENS = MAX_NEW_TOKENS * 20 if model_name.startswith("DEEPSEEK") else MAX_NEW_TOKENS
     model_params = None
     if model_name.endswith("70B"):
         print("70B model, using quantization!")
