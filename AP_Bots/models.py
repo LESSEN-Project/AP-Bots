@@ -157,7 +157,6 @@ class LLM:
                 return {
                     "api_key": os.getenv("GOOGLE_API_KEY")
                 }
-
             elif self.model_type == "GGUF":
                 return {
                     "n_gpu_layers": -1,

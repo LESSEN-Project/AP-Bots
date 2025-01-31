@@ -1,4 +1,10 @@
-def prepare_res_prompt(dataset, query, llm, examples, features=None, counter_examples=None, repetition_step=1, prompt_style="regular"):
+def strip_all(text: str) -> str:
+    return "\n".join(line.strip() for line in text.splitlines())    
+
+def prepare_res_prompt(dataset, query, llm, examples, features=None, counter_examples=None, repetition_step=1):
+
+    if llm.model_name.startswith("DEEPSEEK-R1"):
+        prompt_style = "reason"
 
     if dataset.name == "lamp":
         init_prompt = get_lamp_prompts(dataset.num, repetition_step)
@@ -23,29 +29,23 @@ def prepare_res_prompt(dataset, query, llm, examples, features=None, counter_exa
 
     return init_prompt.format(query=query, examples=context, features=feat_values, counter_examples=ce_examples)
 
-
 def get_BFI_prompts(dataset, text):
 
     if dataset.name == "amazon":
         return amazon_BFI_analysis(text)
 
+def get_amazon_prompts(prompt_style) -> str:
 
-def strip_all(text: str) -> str:
-    return "\n".join(line.strip() for line in text.splitlines())    
-
-
-def get_amazon_prompts(prompt_style: str) -> str:
     amazon_prompts = {
         "regular": amazon_prompt,
-        "react": amazon_react_prompt
+        "reason": amazon_reason_prompt
     }
     return amazon_prompts.get(prompt_style, amazon_prompt)()
-
 
 def amazon_prompt() -> str:
 
     return strip_all("""You are an Amazon customer that likes to write reviews for products. You will be provided a set of features to help you understand your writing style.
-                     First feature you will receive is similar product-review pairs from your past reviews to remind you of your style:
+                     First feature you will receive is similar product-review pairs from your past to remind you of your style:
                      <similarpairs>
                      {examples}
                      </similarpairs>
@@ -60,6 +60,23 @@ def amazon_prompt() -> str:
                      Using the features, generate the proper review. If you haven't received some of the features, only make use of the provided ones. Remember that ratings go from 1 to 5, 1 being the worst rating. Only output the review and nothing else.
                      Product: {query}\nReview:""")
 
+def amazon_reason_prompt() -> str:
+
+    return strip_all("""Your task is to write a product review in the style of an Amazon customer. You will receive a set of features to help you understand the customer's style.
+                     First feature you will receive is similar product-review pairs from the customer's past:
+                     <similarpairs>
+                     {examples}
+                     </similarpairs>
+                     Now you will receive features shedding light into how the customer uses words and formulate sentences:
+                     <features>
+                     {features}
+                     </features>
+                     Finally, you will receive product-review pairs from other customers to help you distinguish the customer's style from others.
+                     <otherwriters>
+                     {counter_examples}
+                     </otherwriters>
+                     Using the features, generate the proper review. If you haven't received some of the features, only make use of the provided ones. Remember that ratings go from 1 to 5, 1 being the worst rating. Analyze the vocabulary usage, the tone, the grammar, the way the customer formulates their sentences (length, structure, etc..) to make the review indistinguishable from the customer's previous reviews. Only output the review and nothing else.
+                     Product: {query}\nReview:""")
 
 def amazon_BFI_analysis(text):
 
@@ -78,44 +95,7 @@ def amazon_BFI_analysis(text):
                        Reviews: {text}
                        Respond in JSON format where each trait is a key, and the value is the corresponding score of the trait. Do not output anything besides the json.""")
     }]
-
-
-def amazon_react_prompt() -> str:
-
-    return strip_all("""You are an Amazon customer who frequently writes product reviews. You will be given several types of information to guide you:
-                        Similar Product-Review Pairs (Your Past Reviews)
-                        <similarpairs>
-                        {examples}
-                        </similarpairs>
-
-                        User-Specific Writing Features
-                        <features>
-                        {features}
-                        </features>
-
-                        Other Writers’ Reviews (Contrastive Examples)
-                        <otherwriters>
-                        {counter_examples}
-                        </otherwriters>
-
-                        Use any provided information to stay consistent with your established style and to differentiate yourself from other reviewers. If you do not receive some of these information, simply base your review on what is available. Remember that ratings range from 1 to 5, with 1 being the worst rating.
-                        
-                        Use the following format for your answer, upon receiving the product name and the rating you gave:
-
-                        <output>
-                        Thought (Analyze Context): Reflect on the product, the rating and the provided information.
-                        Action (First Draft): Write an initial version of the review.
-                        Thought (Refine): Reevaluate the draft, assess how much it reflects your style and use of grammar.
-                        Action (Revise): Adjust the review for stylistic alignment.
-                        Thought (Final Check): Confirm the review accurately reflects your style.
-                        Final Answer (Review): Provide the final review, under <review> tags.
-                        </output>
-
-                        Do not include the rating in the final review.
-
-                        Product: {query}""")
                     
-
 def get_lamp_prompts(dataset_num: int, repetition_step) -> str:
 
     lamp_prompts = {
@@ -126,10 +106,9 @@ def get_lamp_prompts(dataset_num: int, repetition_step) -> str:
     
     return lamp_prompts.get(dataset_num)(repetition_step)
 
-
 def _lamp_prompt_4(repetition_step) -> str:
 
-    features = strip_all("""You are a news editor that generates titles for articles. You will be provided a set of features to help you understand your writing style.
+    return strip_all("""You are a news editor that generates titles for articles. You will be provided a set of features to help you understand your writing style.
                     First feature you will receive is similar article-title pairs from your past works:
                     <similarpairs>
                     {examples}
@@ -141,18 +120,13 @@ def _lamp_prompt_4(repetition_step) -> str:
                     Finally, you will receive article-title pairs from other editors to help you distinguish your style from others.
                     <otherwriters>
                     {counter_examples}
-                    </otherwriters>""")
-
-    instruction = """Using the features, generate the proper title. If you haven't received some of the features, only make use of the provided ones. Only output the title and nothing else."""
-    instruction = "\n".join([instruction]*repetition_step)
-    prompt = strip_all(f"{features}\n{instruction}\n")
-
-    return prompt + """\nArticle: {query}\nTitle:"""
-
+                    </otherwriters>
+                    Using the features, generate the proper title. If you haven't received some of the features, only make use of the provided ones. Only output the title and nothing else.
+                    Article: {query}\nTitle:""")
 
 def _lamp_prompt_5(repetition_step) -> str:
 
-    features = strip_all("""You are a scholar that generates titles for abstracts. You will be provided a set of features to help you understand your writing style.
+    return strip_all("""You are a scholar that generates titles for abstracts. You will be provided a set of features to help you understand your writing style.
                      First feature you will receive is similar abstract-title pairs from your past works:
                      <similarpairs>
                      {examples}
@@ -164,18 +138,13 @@ def _lamp_prompt_5(repetition_step) -> str:
                      Finally, you will receive abstract-title pairs from other scholars to help you distinguish your style from others.
                      <otherwriters>
                      {counter_examples}
-                     </otherwriters>""")
-
-    instruction = """Using the features, generate the proper title. If you haven't received some of the features, only make use of the provided ones. Only output the title and nothing else."""
-    instruction = "\n".join([instruction]*repetition_step)
-    prompt = strip_all(f"{features}\n{instruction}\n")
-
-    return prompt + """\nAbstract: {query}\nTitle:"""
-
+                     </otherwriters>
+                     Using the features, generate the proper title. If you haven't received some of the features, only make use of the provided ones. Only output the title and nothing else.
+                     \nAbstract: {query}\nTitle:""")
 
 def _lamp_prompt_7(repetition_step) -> str:
 
-    features = strip_all("""You are a Twitter user. Here is a set of your past tweets:
+    return strip_all("""You are a Twitter user. Here is a set of your past tweets:
                      <pasttweets>
                      {examples}
                      </pasttweets>
@@ -189,10 +158,6 @@ def _lamp_prompt_7(repetition_step) -> str:
                      </otherwriters>
                      Now you will receive your last tweet:
                      Tweet:
-                     {query}""")
-
-    instruction = """Using the provided information, rephrase your last tweet so it better reflects your writing style. If you haven't received some of the information, only make use of the provided ones. Only output the rephrased tweet and nothing else."""
-    instruction = "\n".join([instruction]*repetition_step)
-    prompt = strip_all(f"{features}\n{instruction}\n")
-
-    return prompt + """\nRephrased Tweet:"""
+                     {query}
+                     Using the provided information, rephrase your last tweet so it better reflects your writing style. If you haven't received some of the information, only make use of the provided ones. Only output the rephrased tweet and nothing else.
+                     Rephrased Tweet:""")
