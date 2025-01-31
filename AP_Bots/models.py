@@ -6,7 +6,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 from llama_cpp import Llama
-from huggingface_hub import login, logging, hf_hub_download
+from huggingface_hub import login, logging, hf_hub_download, snapshot_download
 logging.set_verbosity_error()
 import tiktoken
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, logging, BitsAndBytesConfig, AsyncTextIteratorStreamer
@@ -157,11 +157,10 @@ class LLM:
                 return {
                     "api_key": os.getenv("GOOGLE_API_KEY")
                 }
-
             elif self.model_type == "GGUF":
                 return {
                     "n_gpu_layers": -1,
-                    "verbose": False,
+                    "verbose": True,
                     "n_ctx": self.context_length
                 }
             else:
@@ -185,7 +184,13 @@ class LLM:
                 hf_cache_path = os.getenv("HF_HOME")
             model_path = os.path.join(hf_cache_path, self.file_name)
             if not os.path.exists(model_path):
-                hf_hub_download(repo_id=self.repo_id, filename=self.file_name, local_dir=hf_cache_path)
+                if self.file_name.endswith("gguf"):
+                    hf_hub_download(repo_id=self.repo_id, filename=self.file_name, local_dir=hf_cache_path)
+                else:
+                    snapshot_download(repo_id=self.repo_id, local_dir=hf_cache_path, allow_patterns = [f"*{self.file_name}*"])
+            if not self.file_name.endswith("gguf"):
+                len_files = len(os.listdir(model_path))
+                model_path = f"{model_path}/{self.file_name}-00001-of-0000{len_files}.gguf"
             return Llama(model_path=model_path, **self.model_params)
         else: 
             bnb_config = None

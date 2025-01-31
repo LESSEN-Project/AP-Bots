@@ -3,13 +3,12 @@ import time
 import json
 import sys
 import copy
-
 import torch 
 
-from models import LLM
-from prompts import prepare_res_prompt
-from feature_processor import FeatureProcessor
-from retriever import Retriever
+from AP_Bots.models import LLM
+from AP_Bots.prompts import prepare_res_prompt
+from AP_Bots.feature_processor import FeatureProcessor
+from AP_Bots.retriever import Retriever
 
 from AP_Bots.utils.argument_parser import parse_args
 from AP_Bots.utils.file_utils import oai_get_or_create_file
@@ -17,7 +16,6 @@ from AP_Bots.utils.misc import get_model_list
 
 args, dataset, final_feature_list, k = parse_args()
 MAX_NEW_TOKENS = 64 if dataset.name == "lamp" else 128
-MAX_NEW_TOKENS = MAX_NEW_TOKENS if args.prompt_style == "regular" else MAX_NEW_TOKENS * 10
 pred_path = os.path.join("files", "preds")
 os.makedirs(pred_path, exist_ok=True)
 
@@ -42,16 +40,12 @@ if args.counter_examples:
 
 queries, _, _ = dataset.get_retr_data() 
 
-print(f"Running experiments for {dataset.tag} with Features: {final_feature_list}, Retriever: {args.retriever}, Repetition Step: {args.repetition_step}, Prompt Style: {args.prompt_style} and K: {k}")
+print(f"Running experiments for {dataset.tag} with Features: {final_feature_list}, Retriever: {args.retriever}, Repetition Step: {args.repetition_step} and K: {k}")
 sys.stdout.flush()
 
 for model_name in LLMs:
 
     exp_name = f"{dataset.tag}_{model_name}_{final_feature_list}_{args.retriever}_RS({args.repetition_step})_K({k})"
-
-    if args.prompt_style == "react":
-        exp_name = f"{exp_name}_PS({args.prompt_style})"
-
     out_path = os.path.join(pred_path, f"{exp_name}.json")
 
     if os.path.exists(out_path):
@@ -69,7 +63,7 @@ for model_name in LLMs:
         print("Batch openai jobs can only be done on the whole dataset!")
         continue
 
-    MAX_NEW_TOKENS = MAX_NEW_TOKENS * 20 if model_name.startswith("R1") else MAX_NEW_TOKENS
+    MAX_NEW_TOKENS = MAX_NEW_TOKENS * 20 if model_name.startswith("DEEPSEEK") else MAX_NEW_TOKENS
     model_params = None
     if model_name.endswith("70B"):
         print("70B model, using quantization!")
@@ -110,7 +104,7 @@ for model_name in LLMs:
 
         start_bot_time = time.time() 
 
-        prompt = prepare_res_prompt(dataset, query, llm, examples=context, features=features, counter_examples=ce_examples, repetition_step=args.repetition_step, prompt_style=args.prompt_style)
+        prompt = prepare_res_prompt(dataset, query, llm, examples=context, features=features, counter_examples=ce_examples, repetition_step=args.repetition_step)
         prompt = [{"role": "user", "content": prompt}]
         id = ids[cont_idx] if dataset.name == "lamp" else cont_idx
 

@@ -1,4 +1,3 @@
-
 import time
 import random
 import os
@@ -9,7 +8,7 @@ import streamlit as st
 from AP_Bots.utils.output_parser import parse_json
 from AP_Bots.app.vectordb import VectorDB
 from AP_Bots.app.utils import stream_output
-from AP_Bots.app.chatbot import get_avail_llms, get_conv_topic, get_llm, get_prompt, sent_analysis
+from AP_Bots.app.chatbot import get_avail_llms, get_conv_topic, get_llm, get_prompt, sent_analysis, style_analysis
 from AP_Bots.app.st_css_style import set_wide_sidebar, hide_sidebar, button_style, checkbox_font
 
 button_style()
@@ -25,6 +24,9 @@ if "available_models" not in st.session_state:
 
 if "sentiment_tracker" not in st.session_state:
     st.session_state.sentiment_tracker = []
+
+if "style_tracker" not in st.session_state:
+    st.session_state.style_tracker = []
 
 if "db" not in st.session_state:
     st.session_state.db = VectorDB()
@@ -313,6 +315,10 @@ else:
                 cur_sentiment = sent_analysis(prompt)
                 st.session_state.sentiment_tracker.append(parse_json(cur_sentiment))
                 print(st.session_state.sentiment_tracker)
+
+                cur_style = style_analysis("\n".join(f"{m['content']}" for m in st.session_state.messages if m['role'] == "user"))
+                st.session_state.style_tracker.append(parse_json(cur_style))
+                print(st.session_state.style_tracker)
             
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
