@@ -1,20 +1,20 @@
 
 def ap_bot_prompt(prev_convs, cur_conv):
 
-    return [{
-        "role": "system",
-        "content": "You are an adaptive, personalized assistant. You answer in a conversational style similar to the user. You are allowed to use swear words as long as you don't insult the user."
-    },
+    return [
     {
         "role": "user",
-        "content": f"""Here are the previous conversations you had with this user:
+        "content": f"""Here is the current conversation you are having with the user:
+        <current_conversation>
+        {cur_conv}
+        </current_conversation>
+
+        For better understanding the user, here are the previous conversations you had:
         <previous_conversations>
         {prev_convs}
         </previous_conversations>
-        Analyze their conversation style, and answer their last message in the current conversation in their style. If no previous conversation is available, derive their style from the current conversation.
-        <current_conversation>
-        {cur_conv}
-        </current_conversation>"""
+        
+        Give an appropriate answer to the user."""
     }]
 
 def conv_title_prompt(conversation):

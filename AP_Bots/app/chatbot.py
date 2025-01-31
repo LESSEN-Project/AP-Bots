@@ -13,21 +13,66 @@ from AP_Bots.models import LLM
 def get_llm(model_name="GPT-4o-mini", gen_params={"max_new_tokens": 1024}):
     return LLM(model_name, gen_params=gen_params)
 
-def get_prompt(session_state, user_conversations):
+def get_conv_string(unstructured_memory, include_title=False, include_assistant=False):
 
     all_past_convs = ""
+
+    for i, conv in enumerate(unstructured_memory):
+        cur_turn = f"Conversation: {i}\n"
+        if include_title:
+            cur_turn = f"{cur_turn}Conversation Title: {conv['title']}\n"
+        for turn in conv["conv"]:
+            if include_assistant:
+                cur_turn = f"{cur_turn}\nUser: {turn['user_message'].strip()}\nAssistant: {turn['assistant_message'].strip()}"
+            else:
+                cur_turn = f"{cur_turn}\n{turn['user_message'].strip()}"
+    
+        all_past_convs = f"{all_past_convs}\n{cur_turn}\n"
+
+    return all_past_convs
+
+def get_unstructured_memory(user_conversations, title):
+
+    all_past_convs = []
     for conv in user_conversations:
-        if "title" in session_state and session_state.title == conv["title"]:
+        if title == conv["title"]:
             continue                        
-        cur_turn = f"Title: {conv['title']}\n"
-        for turn in conv["conversation"]:
-            cur_turn = f"{cur_turn}\nUser:{turn['user_message']}\nAssistant:{turn['assistant_message']}"
-        all_past_convs = f"{all_past_convs}\n{cur_turn}"
+        all_past_convs.append({
+            "title": conv["title"],
+            "conv": conv["conversation"]})
 
+    return all_past_convs
+
+def sent_analysis(text):
+
+    llm = get_llm("GPT-4o", gen_params={"max_new_tokens": 128})
+    prompt = sent_analysis_prompt(text)
+
+    return llm.generate(prompt)
+
+def style_analysis(session_state, text):
+
+    all_past_convs = get_conv_string(session_state.unstructured_memory)
+    print(all_past_convs)
+    llm = get_llm("GPT-4o", gen_params={"max_new_tokens": 256})
+    prompt = style_analysis_prompt(text)
+
+    return llm.generate(prompt)
+
+def ap_bot_respond(session_state):
+
+    all_past_convs = get_conv_string(session_state.unstructured_memory, include_title=True, include_assistant=True)
+    print(all_past_convs)
     cur_conv = "\n".join(f"{m['role']}: {m['content']}" for m in session_state.messages)
-    pers_prompt = ap_bot_prompt(all_past_convs, cur_conv)
+    prompt = ap_bot_prompt(all_past_convs, cur_conv)
 
-    return pers_prompt
+    response = session_state.chatbot.generate(
+    prompt=prompt, stream=True
+    )
+    if isinstance(response, str):
+        response = stream_output(response)
+
+    return response
 
 def get_available_GPUmem():
 
@@ -80,15 +125,3 @@ def get_conv_topic(conversation):
     title = title.strip('*')
 
     return title
-
-def sent_analysis(text):
-
-    llm = get_llm("GPT-4o", gen_params={"max_new_tokens": 128})
-    prompt = sent_analysis_prompt(text)
-    return llm.generate(prompt)
-
-def style_analysis(text):
-
-    llm = get_llm("GPT-4o", gen_params={"max_new_tokens": 256})
-    prompt = style_analysis_prompt(text)
-    return llm.generate(prompt)

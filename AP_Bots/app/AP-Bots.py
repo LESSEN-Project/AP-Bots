@@ -8,7 +8,7 @@ import streamlit as st
 from AP_Bots.utils.output_parser import parse_json
 from AP_Bots.app.vectordb import VectorDB
 from AP_Bots.app.utils import stream_output
-from AP_Bots.app.chatbot import get_avail_llms, get_conv_topic, get_llm, get_prompt, sent_analysis, style_analysis
+from AP_Bots.app.chatbot import get_avail_llms, get_conv_topic, get_llm, sent_analysis, style_analysis, ap_bot_respond, get_unstructured_memory
 from AP_Bots.app.st_css_style import set_wide_sidebar, hide_sidebar, button_style, checkbox_font
 
 button_style()
@@ -207,6 +207,10 @@ else:
 
         # Past conversations
         user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
+        unstructured_memory = get_unstructured_memory(user_conversations, st.session_state.get("title", None))
+
+        if "unstructured_memory" not in st.session_state:
+            st.session_state.unstructured_memory = unstructured_memory
 
         if "conv_id" in st.session_state:
             current_conv_id = st.session_state.conv_id
@@ -302,23 +306,17 @@ else:
             
         with st.chat_message("assistant"):
             with st.spinner("Generating response..."):
-                
-                pers_prompt = get_prompt(st.session_state, user_conversations)
 
-                response = st.session_state.chatbot.generate(
-                    prompt=pers_prompt, stream=True
-                )
-                if isinstance(response, str):
-                    response = stream_output(response)
+                response = ap_bot_respond(st.session_state)
                 full_response = st.write_stream(response)
 
                 cur_sentiment = sent_analysis(prompt)
                 st.session_state.sentiment_tracker.append(parse_json(cur_sentiment))
                 print(st.session_state.sentiment_tracker)
 
-                cur_style = style_analysis("\n".join(f"{m['content']}" for m in st.session_state.messages if m['role'] == "user"))
+                cur_style = style_analysis(st.session_state, "\n".join(f"{m['content']}" for m in st.session_state.messages if m['role'] == "user"))
                 st.session_state.style_tracker.append(parse_json(cur_style))
-                print(st.session_state.style_tracker)
+                print(st.session_state.style_tracker[-1])
             
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
