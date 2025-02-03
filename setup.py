@@ -7,5 +7,5 @@ setup(
     author_email="mertyazan2867@gmail.com",
     description="",
     packages=find_packages(),
-    python_requires=">=3.11", 
+    python_requires=">=3.10", 
 )
