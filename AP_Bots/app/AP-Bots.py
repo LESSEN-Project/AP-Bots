@@ -207,10 +207,7 @@ else:
 
         # Past conversations
         user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
-        unstructured_memory = get_unstructured_memory(user_conversations, st.session_state.get("title", None))
-
-        if "unstructured_memory" not in st.session_state:
-            st.session_state.unstructured_memory = unstructured_memory
+        st.session_state.unstructured_memory = get_unstructured_memory(user_conversations, st.session_state.get("title", None))
 
         if "conv_id" in st.session_state:
             current_conv_id = st.session_state.conv_id
@@ -244,13 +241,18 @@ else:
             
             # Red trash-can button to delete conversation
             with col2:
-                if st.button("🗑️", key=f"del_conv_{conv['conv_id']}_{i}",
-                            help="Delete this conversation", use_container_width=True):
+                if st.button("🗑️", key=f"del_conv_{conv['conv_id']}_{i}", help="Delete this conversation", use_container_width=True):
                     st.session_state.db.delete_conversation(conv["conv_id"])
+                    
+                    # **Update memory after deletion**
+                    user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
+                    st.session_state.unstructured_memory = get_unstructured_memory(user_conversations, st.session_state.get("title", None))
+
                     # If deleting the currently loaded conversation, clear it
                     if "conv_id" in st.session_state and st.session_state.conv_id == conv["conv_id"]:
                         del st.session_state["conv_id"]
                         st.session_state.messages = []
+
                     st.toast(f"Conversation '{conv['title']}' deleted.")
                     st.rerun()
 
@@ -300,24 +302,21 @@ else:
     if prompt := st.chat_input("Message AP-Bot..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         user_message_time = datetime.now().isoformat()
-        
+
         with st.chat_message("user"):
             st.markdown(prompt)
-            
+
         with st.chat_message("assistant"):
             with st.spinner("Generating response..."):
-
                 response = ap_bot_respond(st.session_state)
                 full_response = st.write_stream(response)
 
                 cur_sentiment = sent_analysis(prompt)
                 st.session_state.sentiment_tracker.append(parse_json(cur_sentiment))
-                print(st.session_state.sentiment_tracker)
 
                 cur_style = style_analysis(st.session_state, "\n".join(f"{m['content']}" for m in st.session_state.messages if m['role'] == "user"))
                 st.session_state.style_tracker.append(parse_json(cur_style))
-                print(st.session_state.style_tracker[-1])
-            
+
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
         turn_json = {
@@ -328,6 +327,7 @@ else:
             "assistant_message": full_response,
         }
 
+        # **Update memory after adding a new conversation**
         if "conv_id" not in st.session_state:
             st.session_state.title = get_conv_topic("\n".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages))
             st.session_state.conv_id = st.session_state.db.save_conversation(
@@ -335,6 +335,10 @@ else:
                 turn=turn_json,
                 title=st.session_state.title
             )
+            
+            user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
+            st.session_state.unstructured_memory = get_unstructured_memory(user_conversations, st.session_state.get("title", None))
+        
         else:
             st.session_state.db.update_conversation(
                 conv_id=st.session_state.conv_id,

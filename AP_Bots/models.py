@@ -218,7 +218,20 @@ class LLM:
 
             response = self.model.chat.completions.create(model=self.repo_id, messages=prompt, stream=stream, **gen_params)
             if stream:
-                return response
+                def stream_response():
+                    if self.model_type == "DSAPI" and self.cfg.get("reason"):
+                        yield "**Thinking**...\n\n\n"
+                    for chunk in response:
+                        if hasattr(chunk.choices[0].delta, 'reasoning_content') and chunk.choices[0].delta.reasoning_content:
+                            reasoning_content = chunk.choices[0].delta.reasoning_content
+                            yield reasoning_content
+                        elif hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
+                            if self.model_type == "DSAPI" and self.cfg.get("reason"):
+                                yield "**\n\n\nFinished Thinking!**...\n\n\n"
+                            content = chunk.choices[0].delta.content
+                            yield content
+                
+                return stream_response()
             
             output = response.choices[0].message.content
             if self.model_type == "DSAPI" and self.cfg.get("reason"):

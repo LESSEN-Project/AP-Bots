@@ -53,7 +53,6 @@ def sent_analysis(text):
 def style_analysis(session_state, text):
 
     all_past_convs = get_conv_string(session_state.unstructured_memory)
-    print(all_past_convs)
     llm = get_llm("GPT-4o", gen_params={"max_new_tokens": 256})
     prompt = style_analysis_prompt(text)
 
