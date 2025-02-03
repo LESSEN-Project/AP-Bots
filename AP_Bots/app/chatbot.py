@@ -1,4 +1,5 @@
 import os
+import time
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlDeviceGetComputeRunningProcesses, nvmlShutdown, nvmlDeviceGetCount
 
 from AP_Bots.app.app_prompts import (
@@ -9,6 +10,11 @@ from AP_Bots.app.app_prompts import (
 )
 from AP_Bots.models import LLM
 
+def stream_output(output):
+
+    for word in output:
+        yield word
+        time.sleep(0.005)
 
 def get_llm(model_name="GPT-4o-mini", gen_params={"max_new_tokens": 1024}):
     return LLM(model_name, gen_params=gen_params)
