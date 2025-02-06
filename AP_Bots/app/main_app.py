@@ -299,11 +299,24 @@ else:
 
     # Process user input
     if prompt := st.chat_input("Message AP-Bot..."):
+
+        if "conv_id" not in st.session_state:
+            start_time, conv_id = st.session_state.db.gen_conv_id(st.session_state.user_id)
+
         st.session_state.messages.append({"role": "user", "content": prompt})
         user_message_time = datetime.now().isoformat()
 
         with st.chat_message("user"):
             st.markdown(prompt)
+
+        conv_id = st.session_state.conv_id if "conv_id" in st.session_state else conv_id
+        search_filter = f"user_id == {st.session_state.user_id} and conv_id != {conv_id}"
+        similar_turns = st.session_state.db.dense_search(prompt, search_filter)
+        
+        print(similar_turns)
+
+        similar_turns = st.session_state.db.bm25_search(prompt, search_filter)
+        print(similar_turns)
 
         with st.chat_message("assistant"):
             with st.spinner("Generating response..."):
@@ -322,8 +335,11 @@ else:
 
         if "conv_id" not in st.session_state:
             st.session_state.title = get_conv_topic("\n".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages))
-            st.session_state.conv_id = st.session_state.db.save_conversation(
+            st.session_state.conv_id = conv_id
+            st.session_state.db.save_conversation(
+                conv_id=conv_id,
                 user_id=st.session_state.user_id,
+                start_time=start_time,
                 turn=turn_json,
                 title=st.session_state.title
             )
