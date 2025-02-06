@@ -219,20 +219,33 @@ class LLM:
             response = self.model.chat.completions.create(model=self.repo_id, messages=prompt, stream=stream, **gen_params)
             if stream:
                 def stream_response():
+                    has_reasoning = False
+                    finished_thinking_yielded = False
+                    reasoning_content = ""
+
                     if self.model_type == "DSAPI" and self.cfg.get("reason"):
                         yield "**Thinking**...\n\n\n"
+
                     for chunk in response:
-                        if hasattr(chunk.choices[0].delta, 'reasoning_content') and chunk.choices[0].delta.reasoning_content:
-                            reasoning_content = chunk.choices[0].delta.reasoning_content
-                            yield reasoning_content
-                        elif hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
-                            if self.model_type == "DSAPI" and self.cfg.get("reason"):
+                        delta = chunk.choices[0].delta
+                        
+                        if hasattr(delta, 'reasoning_content') and delta.reasoning_content:
+                            has_reasoning = True 
+                            reasoning_content += delta.reasoning_content
+                            yield delta.reasoning_content
+                        
+                        elif hasattr(delta, 'content') and delta.content:
+                            if has_reasoning and not finished_thinking_yielded:
                                 yield "**\n\n\nFinished Thinking!**...\n\n\n"
-                            content = chunk.choices[0].delta.content
-                            yield content
-                
+                                finished_thinking_yielded = True  # Ensure it is only yielded once
+
+                            yield delta.content
+                    
+                    if has_reasoning and not finished_thinking_yielded:
+                        yield "**\n\n\nFinished Thinking!**...\n\n\n"
+
                 return stream_response()
-            
+                            
             output = response.choices[0].message.content
             if self.model_type == "DSAPI" and self.cfg.get("reason"):
                 reasoning_steps = response.choices[0].message.reasoning_content
