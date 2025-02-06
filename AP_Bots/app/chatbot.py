@@ -16,7 +16,7 @@ def stream_output(output):
         yield word
         time.sleep(0.005)
 
-def get_llm(model_name="GPT-4o-mini", gen_params={"max_new_tokens": 1024}):
+def get_llm(model_name="GPT-4o-mini", gen_params={"max_new_tokens": 2048}):
     return LLM(model_name, gen_params=gen_params)
 
 def get_conv_string(unstructured_memory, include_title=False, include_assistant=False):

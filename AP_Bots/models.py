@@ -28,7 +28,7 @@ class LLM:
         self.repo_id = self.cfg.get("repo_id")
         self.file_name = self.cfg.get("file_name", None)
         self.context_length = int(self.cfg.get("context_length"))
-        self.model_type = self.get_model_type()
+        self.provider = self.get_provider()
         self.tokenizer = self.init_tokenizer()
         self.model_params = self.get_model_params(model_params)
         self.gen_params = self.get_gen_params(gen_params)
@@ -40,86 +40,36 @@ class LLM:
         config = configparser.ConfigParser()
         config.read(os.path.join(Path(__file__).absolute().parent, "model_config.cfg"))
         return config
-
-    def get_avail_space(self, prompt):
-
-        avail_space = self.context_length - self.gen_params[self.name_token_var] - self.count_tokens(prompt)
-        if avail_space <= 0:
-            return None
-        else:
-            return avail_space   
         
-    def trunc_chat_history(self, chat_history, hist_dedic_space=0.2):
-
-        hist_dedic_space = int(self.context_length*0.2)
-        total_hist_tokens = sum(self.count_tokens(tm['content']) for tm in chat_history)
-        while total_hist_tokens > hist_dedic_space:
-            removed_message = chat_history.pop(0)
-            total_hist_tokens -= self.count_tokens(removed_message['content'])
-        return chat_history 
-       
-    def count_tokens(self, prompt):
-
-        if isinstance(prompt, list):
-            prompt = "\n".join([turn["content"] for turn in prompt])
-        if self.family == "GPT":
-            encoding = tiktoken.encoding_for_model(self.repo_id)
-            return len(encoding.encode(prompt))
-        elif self.family == "GEMINI":
-            return self.model.count_tokens(prompt).total_tokens
-        elif self.family == "CLAUDE":
-            return self.model.count_tokens(prompt)
-        else:
-            return len(self.tokenizer(prompt).input_ids)
-        
-    def prepare_context(self, prompt, context, query=None, chat_history=[]):
-
-        if chat_history:
-            chat_history = self.trunc_chat_history(chat_history)
-        if isinstance(prompt, str):
-            prompt = [{"role": "user", "content": prompt}]
-        query_len = self.count_tokens(query) if query else 0
-        avail_space = self.get_avail_space(prompt + chat_history) - query_len  
-        if avail_space:         
-            while True:
-                info = "\n".join([doc for doc in context])
-                if self.count_tokens(info) > avail_space:
-                    print("Context exceeds context window, removing one document!")
-                    context = context[:-1]
-                else:
-                    break
-            return info
-        else:
-            return -1
-        
-    def get_model_type(self):
+    def get_provider(self):
 
         if self.model_name.endswith("GROQ"):
             return "GROQ"
         elif self.model_name.endswith("GGUF"):
             return "GGUF"
-        elif self.model_name.endswith("DSAPI"):
-            return "DSAPI"
-        elif self.family in ["CLAUDE", "GPT", "GEMINI"]:
-            return "proprietary"  
+        elif self.cfg.get("provider"):
+            return self.cfg.get("provider")  
         else:
-            return "default"
+            return "HF"
         
     def init_tokenizer(self):
 
-        if self.model_type in ["GROQ", "GGUF", "DSAPI"]:
+        if self.provider in ["GROQ", "GGUF", "DEEPSEEK"]:
             return AutoTokenizer.from_pretrained(self.cfg.get("tokenizer"), use_fast=True)
-        elif self.model_type == "proprietary":
+        elif self.provider in ["ANTHROPIC", "OPENAI", "GOOGLE"]:
             return None
         else:
             return AutoTokenizer.from_pretrained(self.repo_id, use_fast=True)
             
     def get_gen_params(self, gen_params):
 
-        if self.family == "GEMINI":
+        if self.provider == "GOOGLE":
             self.name_token_var = "max_output_tokens"
-        elif self.model_type in ["proprietary", "GGUF", "DSAPI"]:
-            self.name_token_var = "max_tokens"
+        elif self.provider in ["OPENAI", "ANTHROPIC", "GGUF", "DEEPSEEK"]:
+            if self.family in ["o1", "o3"]:
+                self.name_token_var = "max_completion_tokens"
+            else:
+                self.name_token_var = "max_tokens"
         else:
             self.name_token_var = "max_new_tokens"
         if gen_params is None:
@@ -130,34 +80,36 @@ class LLM:
             gen_params[self.name_token_var] = gen_params.pop("max_tokens")
         elif "max_output_tokens" in gen_params and self.name_token_var != "max_output_tokens":
             gen_params[self.name_token_var] = gen_params.pop("max_output_tokens")
+        elif "max_completion_tokens" in gen_params and self.name_token_var != "max_completion_tokens":
+            gen_params[self.name_token_var] = gen_params.pop("max_completion_tokens")
         return gen_params
     
     def get_model_params(self, model_params):
 
         if model_params is None:
-            if self.model_type == "GROQ":
+            if self.provider == "GROQ":
                 return {
                     "base_url": "https://api.groq.com/openai/v1",
                     "api_key": os.getenv("GROQ_API_KEY")
                 }   
-            elif self.model_type == "DSAPI":
+            elif self.provider == "DEEPSEEK":
                 return {
                     "base_url": "https://api.deepseek.com",
                     "api_key": os.getenv("DEEPSEEK_API_KEY")
                 }                     
-            elif self.family == "CLAUDE":
+            elif self.provider == "ANTHROPIC":
                 return {
                     "api_key": os.getenv("ANTHROPIC_API_KEY")
                 }
-            elif self.family == "GPT":
+            elif self.provider == "OPENAI":
                 return {
                     "api_key": os.getenv("OPENAI_API_KEY")
                 }
-            elif self.family == "GEMINI":
+            elif self.provider == "GOOGLE":
                 return {
                     "api_key": os.getenv("GOOGLE_API_KEY")
                 }
-            elif self.model_type == "GGUF":
+            elif self.provider == "GGUF":
                 return {
                     "n_gpu_layers": -1,
                     "verbose": True,
@@ -170,14 +122,14 @@ class LLM:
     
     def init_model(self):
 
-        if self.family == "CLAUDE":
+        if self.provider == "ANTHROPIC":
             return Anthropic(**self.model_params)
-        elif self.family == "GPT" or self.model_type in ["GROQ", "DSAPI"]:
+        elif self.provider in ["OPENAI", "GROQ", "DEEPSEEK"]:
             return OpenAI(**self.model_params)       
-        elif self.family == "GEMINI":
+        elif self.provider == "GOOGLE":
             genai.configure(**self.model_params)
             return genai.GenerativeModel(self.repo_id)
-        elif self.model_type == "GGUF":
+        elif self.provider == "GGUF":
             if os.getenv("HF_HOME") is None:
                 hf_cache_path = os.path.join(os.path.expanduser('~'), ".cache", "huggingface", "hub")
             else:
@@ -207,6 +159,57 @@ class LLM:
                     low_cpu_mem_usage=True,
                     device_map="auto")
 
+    def get_avail_space(self, prompt):
+
+        avail_space = self.context_length - self.gen_params[self.name_token_var] - self.count_tokens(prompt)
+        if avail_space <= 0:
+            return None
+        else:
+            return avail_space   
+        
+    def trunc_chat_history(self, chat_history, hist_dedic_space=0.2):
+
+        hist_dedic_space = int(self.context_length*0.2)
+        total_hist_tokens = sum(self.count_tokens(tm['content']) for tm in chat_history)
+        while total_hist_tokens > hist_dedic_space:
+            removed_message = chat_history.pop(0)
+            total_hist_tokens -= self.count_tokens(removed_message['content'])
+        return chat_history 
+       
+    def count_tokens(self, prompt):
+
+        if isinstance(prompt, list):
+            prompt = "\n".join([turn["content"] for turn in prompt])
+        if self.provider == "OPENAI":
+            encoding = tiktoken.encoding_for_model(self.repo_id)
+            return len(encoding.encode(prompt))
+        elif self.provider == "GOOGLE":
+            return self.model.count_tokens(prompt).total_tokens
+        elif self.provider == "ANTHROPIC":
+            return self.model.count_tokens(prompt)
+        else:
+            return len(self.tokenizer(prompt).input_ids)
+        
+    def prepare_context(self, prompt, context, query=None, chat_history=[]):
+
+        if chat_history:
+            chat_history = self.trunc_chat_history(chat_history)
+        if isinstance(prompt, str):
+            prompt = [{"role": "user", "content": prompt}]
+        query_len = self.count_tokens(query) if query else 0
+        avail_space = self.get_avail_space(prompt + chat_history) - query_len  
+        if avail_space:         
+            while True:
+                info = "\n".join([doc for doc in context])
+                if self.count_tokens(info) > avail_space:
+                    print("Context exceeds context window, removing one document!")
+                    context = context[:-1]
+                else:
+                    break
+            return info
+        else:
+            return -1
+
     def generate(self, prompt, stream=False, gen_params=None):
 
         if not gen_params:
@@ -214,7 +217,7 @@ class LLM:
         else:
             gen_params = self.get_gen_params(gen_params)
 
-        if self.model_type in ["GROQ", "DSAPI"] or self.family == "GPT":
+        if self.provider in ["GROQ", "DEEPSEEK", "OPENAI"]:
 
             response = self.model.chat.completions.create(model=self.repo_id, messages=prompt, stream=stream, **gen_params)
             if stream:
@@ -223,7 +226,7 @@ class LLM:
                     finished_thinking_yielded = False
                     reasoning_content = ""
 
-                    if self.model_type == "DSAPI" and self.cfg.get("reason"):
+                    if self.provider == "DEEPSEEK" and self.cfg.get("reason"):
                         yield "**Thinking**...\n\n\n"
 
                     for chunk in response:
@@ -236,22 +239,22 @@ class LLM:
                         
                         elif hasattr(delta, 'content') and delta.content:
                             if has_reasoning and not finished_thinking_yielded:
-                                yield "**\n\n\nFinished Thinking!**...\n\n\n"
-                                finished_thinking_yielded = True  # Ensure it is only yielded once
+                                yield "\n\n\n**Finished Thinking!**\n\n\n"
+                                finished_thinking_yielded = True
 
                             yield delta.content
                     
                     if has_reasoning and not finished_thinking_yielded:
-                        yield "**\n\n\nFinished Thinking!**...\n\n\n"
+                        yield "\n\n\n**Finished Thinking!**\n\n\n"
 
                 return stream_response()
                             
             output = response.choices[0].message.content
-            if self.model_type == "DSAPI" and self.cfg.get("reason"):
+            if self.provider == "DEEPSEEK" and self.cfg.get("reason"):
                 reasoning_steps = response.choices[0].message.reasoning_content
                 output = f"**Thinking**...\n\n\n{reasoning_steps}\n\n\n**Finished thinking!**\n\n\n{output}"
 
-        elif self.family == "CLAUDE":
+        elif self.provider == "ANTHROPIC":
 
             if prompt[0]["role"] == "system":
                 sys_msg = prompt[0]["content"]
@@ -266,7 +269,7 @@ class LLM:
                 response = self.model.messages.create(model=self.repo_id, messages=prompt, system=sys_msg, **gen_params)
                 output = response.content[0].text   
 
-        elif self.family == "GEMINI":
+        elif self.provider == "GOOGLE":
 
             messages = []
             for turn in prompt:
@@ -284,7 +287,7 @@ class LLM:
                 if len(prompt) > 1:
                     prompt = [{"role": "user", "content": "\n".join([turn["content"] for turn in prompt])}]
 
-            if self.model_type == "GGUF":
+            if self.provider == "GGUF":
                 response = self.model.create_chat_completion(prompt, stream=False, **gen_params)
                 output = response["choices"][-1]["message"]["content"]
             else:

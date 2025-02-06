@@ -14,7 +14,7 @@ def ap_bot_prompt(prev_convs, cur_conv):
         {prev_convs}
         </previous_conversations>
         
-        Give an appropriate answer to the user."""
+        Give an appropriate answer to the user, without explicitly mentioning the previous conversations. The previous conversation are there for context and reference only."""
     }]
 
 def conv_title_prompt(conversation):

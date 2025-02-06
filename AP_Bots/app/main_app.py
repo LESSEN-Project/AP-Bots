@@ -310,12 +310,6 @@ else:
                 response = ap_bot_respond(st.session_state)
                 full_response = st.write_stream(response)
 
-                cur_sentiment = sent_analysis(prompt)
-                st.session_state.sentiment_tracker.append(parse_json(cur_sentiment))
-
-                cur_style = style_analysis(st.session_state, "\n".join(f"{m['content']}" for m in st.session_state.messages if m['role'] == "user"))
-                st.session_state.style_tracker.append(parse_json(cur_style))
-
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
         turn_json = {
@@ -326,7 +320,6 @@ else:
             "assistant_message": full_response,
         }
 
-        # **Update memory after adding a new conversation**
         if "conv_id" not in st.session_state:
             st.session_state.title = get_conv_topic("\n".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages))
             st.session_state.conv_id = st.session_state.db.save_conversation(
@@ -343,3 +336,9 @@ else:
                 conv_id=st.session_state.conv_id,
                 turn=turn_json,
             )
+
+        cur_sentiment = sent_analysis(prompt)
+        st.session_state.sentiment_tracker.append(parse_json(cur_sentiment))
+
+        cur_style = style_analysis(st.session_state, "\n".join(f"{m['content']}" for m in st.session_state.messages if m['role'] == "user"))
+        st.session_state.style_tracker.append(parse_json(cur_style))
