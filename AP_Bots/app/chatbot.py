@@ -64,14 +64,17 @@ def style_analysis(session_state, text):
 
     return llm.generate(prompt)
 
-def ap_bot_respond(session_state):
+def ap_bot_respond(chatbot, similar_past_turns, cur_conv):
 
-    all_past_convs = get_conv_string(session_state.unstructured_memory, include_title=True, include_assistant=True)
-    print(all_past_convs)
-    cur_conv = "\n".join(f"{m['role']}: {m['content']}" for m in session_state.messages)
-    prompt = ap_bot_prompt(all_past_convs, cur_conv)
+    all_past_conv = ""
+    for i, conv in enumerate(similar_past_turns):
+        past_conv = f"Conversation: {i}\n"
+        for turn in conv:
+            past_conv = f"{past_conv}\n{turn['role']}: {turn['text']}"
+        all_past_conv = f"{all_past_conv}\n{past_conv}\n"
 
-    response = session_state.chatbot.generate(
+    prompt = ap_bot_prompt(all_past_conv, cur_conv)
+    response = chatbot.generate(
     prompt=prompt, stream=True
     )
     if isinstance(response, str):

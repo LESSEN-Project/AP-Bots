@@ -8,12 +8,12 @@ def ap_bot_prompt(prev_convs, cur_conv):
         {cur_conv}
         </current_conversation>
 
-        For better understanding the user, here are the previous conversations you had:
+        For better understanding the user, here are snippets from previous conversations you had:
         <previous_conversations>
         {prev_convs}
         </previous_conversations>
         
-        Give an appropriate answer to the user, without explicitly mentioning the previous conversations. The previous conversation are there for context and reference only."""
+        Give an appropriate answer to the user's message in the current conversation without explicitly mentioning the previous conversations. The previous conversation are there for context and reference only."""
     }]
 
 def conv_title_prompt(conversation):

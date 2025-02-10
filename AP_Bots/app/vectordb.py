@@ -159,7 +159,7 @@ class VectorDB:
             "dense_vector": self.get_embedding([text])
         })
 
-    def dense_search(self, query_text, search_filter, top_k=3):
+    def dense_search(self, query_text, search_filter, top_k=3, distance_threshold=0.5):
 
         query_embedding = self.get_embedding([query_text])
         results = self.client.search(
@@ -167,20 +167,29 @@ class VectorDB:
             data=[query_embedding],
             anns_field="dense_vector",
             search_params={
-            "metric_type": "IP",
+                "metric_type": "IP",
+                "radius": distance_threshold
             },
             limit=top_k,
             filter=search_filter,
-            output_fields=["turn_id", "conv_id", "role", "text", "timestamp", "sparse_vector"]
+            output_fields=["turn_id", "conv_id", "role", "text", "timestamp"]
         )
-        return results
+        
+        filtered_results = []
+        for res in results[0]:
+            unified_result = {
+                  'turn_id': res['entity']['turn_id'],
+                  'conv_id': res['entity']['conv_id'],
+                  'role': res['entity']['role'],
+                  'text': res['entity']['text'],
+                  'timestamp': res['entity']['timestamp'],
+                  'distance': res['distance'] 
+            }
+            filtered_results.append(unified_result)
+        
+        return filtered_results
 
     def bm25_search(self, query_text, search_filter, top_k=3):
-        """
-        Perform a BM25 search on conversation turns for the specified user.
-        Returns the top_k turns ranked by BM25 score.
-        """
-        # Retrieve all conversation turns for this user.
         docs = self.client.query(
             collection_name="chat_turns",
             filter=search_filter,
@@ -236,6 +245,7 @@ class VectorDB:
                 if token in tf:
                     f = tf[token]
                     score += idf[token] * ((f * (k1 + 1)) / (f + k1 * (1 - b + b * (doc_len / avg_dl))))
+
             scores.append(score)
 
         # Get indices of the top_k documents.
@@ -246,4 +256,89 @@ class VectorDB:
             res["bm25_score"] = scores[idx]
             results.append(res)
 
-        return results
+        return [{
+            'turn_id': res['turn_id'],
+            'conv_id': res['conv_id'],
+            'role': res['role'],
+            'text': res['text'],
+            'timestamp': res['timestamp'],
+            'bm25_score': res["bm25_score"]
+        } for res in results if res["bm25_score"] > 0]
+
+    def hybrid_search(self, query_text, search_filter, top_k=3, distance_threshold=0.5, window_size=1):
+        dense_results = self.dense_search(query_text, search_filter, top_k, distance_threshold)
+        bm25_results = self.bm25_search(query_text, search_filter, top_k)
+
+        merged_results = {}
+
+        # Process dense search results first
+        for result in dense_results:
+            merged_results[result["turn_id"]] = {
+                **result,
+                "bm25_score": None,  # Set to None initially
+                "distance": result["distance"]  # Store distance from dense search
+            }
+
+        # Process BM25 results
+        for result in bm25_results:
+            if result["turn_id"] in merged_results:
+                # If turn already exists from dense search, just update bm25_score
+                merged_results[result["turn_id"]]["bm25_score"] = result["bm25_score"]
+            else:
+                # If the turn is new, add it with None for distance
+                merged_results[result["turn_id"]] = {
+                    **result,
+                    "bm25_score": result["bm25_score"],
+                    "distance": None 
+                }
+
+        merged_results = list(merged_results.values())
+
+        # Group results by conversation
+        conversation_groups = {}
+        for res in merged_results:
+            conv_id = res["conv_id"]
+            if conv_id not in conversation_groups:
+                conversation_groups[conv_id] = []
+            conversation_groups[conv_id].append(res)
+
+        # Retrieve merged conversation windows for each conversation
+        conversation_windows = []
+        for conv_id, turn_data in conversation_groups.items():
+            turn_ids = [entry["turn_id"] for entry in turn_data]
+            scored_turns = {entry["turn_id"]: entry for entry in turn_data}  # Store original scores
+            conversation_windows.append(self.get_merged_conversation_window(conv_id, turn_ids, window_size, scored_turns))
+
+        return conversation_windows
+
+
+    def get_merged_conversation_window(self, conv_id, turn_ids, window_size=1, scored_turns=None):
+        # Retrieve the full conversation
+        conversation = self.client.query(
+            collection_name="chat_turns",
+            filter=f"conv_id == {conv_id}",
+            output_fields=["turn_id", "role", "text", "timestamp"],
+        )
+
+        # Sort by timestamp
+        sorted_conversation = sorted(conversation, key=lambda x: x["timestamp"])
+
+        # Determine the unified start and end indices
+        turn_indices = [i for i, turn in enumerate(sorted_conversation) if turn["turn_id"] in turn_ids]
+        
+        if not turn_indices:
+            return []
+
+        start = max(0, min(turn_indices) - window_size)
+        end = min(len(sorted_conversation), max(turn_indices) + window_size + 1)
+
+        merged_conversation = sorted_conversation[start:end]
+
+        # Add bm25_score and distance if the turn was originally retrieved in the search
+        for turn in merged_conversation:
+            turn_id = turn["turn_id"]
+            if turn_id in scored_turns:
+                turn["bm25_score"] = scored_turns[turn_id]["bm25_score"]
+                turn["distance"] = scored_turns[turn_id]["distance"]
+
+        return merged_conversation

@@ -216,8 +216,6 @@ else:
         else:
             user_conversations = sorted(user_conversations, key=lambda x: x["end_time"], reverse=True)
 
-        # st.subheader("Conversations")
-
         for i, conv in enumerate(user_conversations):
             col1, col2 = st.columns([8, 1], gap="small")
 
@@ -309,16 +307,14 @@ else:
 
         conv_id = st.session_state.conv_id if "conv_id" in st.session_state else conv_id
         search_filter = f"user_id == {st.session_state.user_id} and conv_id != {conv_id}"
-        similar_turns = st.session_state.db.dense_search(prompt, search_filter)
         
+        similar_turns = st.session_state.db.hybrid_search(prompt, search_filter)
         print(similar_turns)
-
-        similar_turns = st.session_state.db.bm25_search(prompt, search_filter)
-        print(similar_turns)
+        cur_conv = "\n".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages)
 
         with st.chat_message("assistant"):
             with st.spinner("Generating response..."):
-                response = ap_bot_respond(st.session_state)
+                response = ap_bot_respond(st.session_state.chatbot, similar_turns, cur_conv)
                 full_response = st.write_stream(response)
 
         st.session_state.messages.append({"role": "assistant", "content": full_response})
