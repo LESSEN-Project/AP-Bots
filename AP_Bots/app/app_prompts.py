@@ -1,8 +1,7 @@
 
 def ap_bot_prompt(prev_convs, cur_conv):
 
-    return [
-    {
+    return [{
         "role": "user",
         "content": f"""Here is the current conversation you are having with the user:
         <current_conversation>
