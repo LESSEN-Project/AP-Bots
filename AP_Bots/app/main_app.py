@@ -197,14 +197,12 @@ else:
 
         st.markdown("---")
 
-        # Chat Management
         if st.button("🧹 New Chat", use_container_width=True):
             if "conv_id" in st.session_state:
                 del st.session_state["conv_id"]
             st.session_state.messages = []
             st.toast("New chat session started")
 
-        # Past conversations
         user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
         st.session_state.unstructured_memory = get_unstructured_memory(user_conversations, st.session_state.get("title", None))
 
@@ -218,7 +216,7 @@ else:
         else:
             user_conversations = sorted(user_conversations, key=lambda x: x["end_time"], reverse=True)
 
-        st.subheader("Past Conversations")
+        # st.subheader("Conversations")
 
         for i, conv in enumerate(user_conversations):
             col1, col2 = st.columns([8, 1], gap="small")
@@ -346,6 +344,7 @@ else:
             
             user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
             st.session_state.unstructured_memory = get_unstructured_memory(user_conversations, st.session_state.get("title", None))
+            st.rerun()
         
         else:
             st.session_state.db.update_conversation(
