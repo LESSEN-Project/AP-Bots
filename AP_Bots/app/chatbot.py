@@ -75,10 +75,7 @@ def ap_bot_respond(chatbot, cur_conv, prev_convs):
             cur_turn = f"{cur_turn}\n{turn['role']}: {turn['text']}"
         all_past_turns = f"{all_past_turns}\n{cur_turn}"
 
-    print(all_past_turns)
-
-    prompt = ap_bot_prompt(prev_convs) + cur_conv 
-    # print(prompt)
+    prompt = ap_bot_prompt(all_past_turns) + cur_conv 
     response = chatbot.generate(
     prompt=prompt, stream=True
     )
