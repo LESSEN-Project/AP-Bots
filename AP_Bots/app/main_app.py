@@ -24,9 +24,6 @@ if "available_models" not in st.session_state:
 if "sentiment_tracker" not in st.session_state:
     st.session_state.sentiment_tracker = []
 
-if "style_tracker" not in st.session_state:
-    st.session_state.style_tracker = []
-
 if "db" not in st.session_state:
     st.session_state.db = VectorDB()
 
@@ -197,15 +194,19 @@ else:
 
         st.markdown("---")
 
+        # Start a new chat session
         if st.button("🧹 New Chat", use_container_width=True):
             if "conv_id" in st.session_state:
                 del st.session_state["conv_id"]
             st.session_state.messages = []
+            st.session_state.title = None  # Reset title when starting a new chat
             st.toast("New chat session started")
 
+        # Fetch all user conversations
         user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
         st.session_state.unstructured_memory = get_unstructured_memory(user_conversations, st.session_state.get("title", None))
 
+        # Sort conversations, prioritizing the current one if it exists
         if "conv_id" in st.session_state:
             current_conv_id = st.session_state.conv_id
             user_conversations = sorted(
@@ -222,31 +223,36 @@ else:
             is_current = "conv_id" in st.session_state and st.session_state.conv_id == conv["conv_id"]
             button_label = f"➡️ {conv['title']}" if is_current else conv["title"]
 
-            # Button to load conversation
             with col1:
                 if st.button(button_label, key=f"load_conv_{conv['conv_id']}_{i}", use_container_width=True):
                     st.session_state.conv_id = conv["conv_id"]
+                    st.session_state.title = conv["title"]
                     loaded_messages = []
                     for turn in conv["conversation"]:
                         loaded_messages.append({"role": "user", "content": turn["user_message"]})
                         loaded_messages.append({"role": "assistant", "content": turn["assistant_message"]})
                     st.session_state.messages = loaded_messages
-                    st.toast(f"Conversation {conv['title']} loaded.")
+
+                    st.session_state.unstructured_memory = get_unstructured_memory(
+                        user_conversations, st.session_state.title
+                    )
+
+                    st.toast(f"Conversation '{conv['title']}' loaded.")
                     st.rerun()
-            
-            # Red trash-can button to delete conversation
+
             with col2:
                 if st.button("🗑️", key=f"del_conv_{conv['conv_id']}_{i}", help="Delete this conversation", use_container_width=True):
                     st.session_state.db.delete_conversation(conv["conv_id"])
-                    
-                    # **Update memory after deletion**
+
+                    # Refresh conversation list
                     user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
                     st.session_state.unstructured_memory = get_unstructured_memory(user_conversations, st.session_state.get("title", None))
 
-                    # If deleting the currently loaded conversation, clear it
+                    # If the deleted conversation was the active one, reset conv_id and title
                     if "conv_id" in st.session_state and st.session_state.conv_id == conv["conv_id"]:
                         del st.session_state["conv_id"]
                         st.session_state.messages = []
+                        st.session_state.title = None
 
                     st.toast(f"Conversation '{conv['title']}' deleted.")
                     st.rerun()
@@ -310,12 +316,16 @@ else:
         
         similar_turns = st.session_state.db.hybrid_search(prompt, search_filter)
         print(similar_turns)
-        cur_conv = "\n".join(f"{m['role']}: {m['content']}" for m in st.session_state.messages)
 
         with st.chat_message("assistant"):
             with st.spinner("Generating response..."):
-                response = ap_bot_respond(st.session_state.chatbot, similar_turns, cur_conv)
+                # user_style = parse_json(style_analysis(st.session_state, "\n".join(f"{m['content']}" for m in st.session_state.messages if m['role'] == "user")))
+                # print(user_style)
+                response = ap_bot_respond(st.session_state.chatbot, st.session_state.messages, prompt)
                 full_response = st.write_stream(response)
+
+        cur_sentiment = sent_analysis(prompt)
+        st.session_state.sentiment_tracker.append(parse_json(cur_sentiment))
 
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
@@ -347,9 +357,3 @@ else:
                 conv_id=st.session_state.conv_id,
                 turn=turn_json,
             )
-
-        cur_sentiment = sent_analysis(prompt)
-        st.session_state.sentiment_tracker.append(parse_json(cur_sentiment))
-
-        cur_style = style_analysis(st.session_state, "\n".join(f"{m['content']}" for m in st.session_state.messages if m['role'] == "user"))
-        st.session_state.style_tracker.append(parse_json(cur_style))

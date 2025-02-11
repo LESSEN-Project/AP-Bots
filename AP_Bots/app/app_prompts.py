@@ -1,20 +1,23 @@
 
-def ap_bot_prompt(prev_convs, cur_conv):
-
-    return [{
-        "role": "user",
-        "content": f"""Here is the current conversation you are having with the user:
-        <current_conversation>
-        {cur_conv}
-        </current_conversation>
-
-        For better understanding the user, here are snippets from previous conversations you had:
+"""For better understanding the user, here are snippets from previous conversations you had:
         <previous_conversations>
         {prev_convs}
         </previous_conversations>
+
+        Here is the current conversation you are having with the user:
+        <current_conversation>
+        {cur_conv}
+        </current_conversation>
         
         Give an appropriate answer to the user's message in the current conversation without explicitly mentioning the previous conversations. The previous conversation are there for context and reference only."""
+
+def ap_bot_prompt(prompt):
+
+    return [{
+        "role": "system",
+        "content": "You are a conversational assistant. Answer in the language you receive the message. Use English by default."
     }]
+
 
 def conv_title_prompt(conversation):
 
@@ -53,15 +56,15 @@ def style_analysis_prompt(messages):
     },
     {
         "role": "user",
-        "content": f"""Please analyze the messages provided below to determine the speaker’s conversation style, grammar usage, vocabulary complexity, average message length, and any other relevant features that characterize their personality and tone.
-
+        "content": f"""Please analyze the messages provided below to determine the speaker’s conversation style, grammar usage, vocabulary complexity, average message length, and any other relevant features that characterize their personality and tone. 
+                    You will receive messages from past conversations, but also from the current conversation. Focus on the messages from the current conversation, and use previous conversations as a tool to understand user's overall style.
                     Return your findings as a JSON object with, at minimum, these keys:
                     {{
                     "grammar_analysis": "",
                     "vocabulary_analysis": "",
                     "average_message_length": "",
                     "tone_and_personality": "",
-                    "additional_observations": ""
+                    "additional_observations": "",
                     }}
 
                     <messages>

@@ -16,7 +16,7 @@ def stream_output(output):
         yield word
         time.sleep(0.005)
 
-def get_llm(model_name="GPT-4o-mini", gen_params={"max_new_tokens": 2048}):
+def get_llm(model_name="GPT-4o-mini", gen_params={"max_new_tokens": 2048, "temperature": 1}):
     return LLM(model_name, gen_params=gen_params)
 
 def get_conv_string(unstructured_memory, include_title=False, include_assistant=False):
@@ -51,7 +51,7 @@ def get_unstructured_memory(user_conversations, title):
 
 def sent_analysis(text):
 
-    llm = get_llm("GPT-4o", gen_params={"max_new_tokens": 128})
+    llm = get_llm("GPT-4o-mini", gen_params={"max_new_tokens": 128})
     prompt = sent_analysis_prompt(text)
 
     return llm.generate(prompt)
@@ -59,21 +59,17 @@ def sent_analysis(text):
 def style_analysis(session_state, text):
 
     all_past_convs = get_conv_string(session_state.unstructured_memory)
-    llm = get_llm("GPT-4o", gen_params={"max_new_tokens": 256})
-    prompt = style_analysis_prompt(text)
+    cur_conv = f"{all_past_convs}\nCurrent Conversation:\n\n{text}"
+
+    llm = get_llm("GPT-4o-mini", gen_params={"max_new_tokens": 256})
+    prompt = style_analysis_prompt(cur_conv)
 
     return llm.generate(prompt)
 
-def ap_bot_respond(chatbot, similar_past_turns, cur_conv):
+def ap_bot_respond(chatbot, prev_messages, user_message):
 
-    all_past_conv = ""
-    for i, conv in enumerate(similar_past_turns):
-        past_conv = f"Conversation: {i}\n"
-        for turn in conv:
-            past_conv = f"{past_conv}\n{turn['role']}: {turn['text']}"
-        all_past_conv = f"{all_past_conv}\n{past_conv}\n"
-
-    prompt = ap_bot_prompt(all_past_conv, cur_conv)
+    prompt = ap_bot_prompt(user_message) + prev_messages 
+    print(prompt)
     response = chatbot.generate(
     prompt=prompt, stream=True
     )
