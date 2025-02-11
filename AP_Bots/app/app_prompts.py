@@ -11,13 +11,14 @@
         
         Give an appropriate answer to the user's message in the current conversation without explicitly mentioning the previous conversations. The previous conversation are there for context and reference only."""
 
-def ap_bot_prompt(prompt):
+def ap_bot_prompt(prev_convs):
 
     return [{
         "role": "system",
-        "content": "You are a conversational assistant. Answer in the language you receive the message. Use English by default."
+        "content": f"""You are a conversational assistant. Answer in the language you receive the message. Use English by default. Snippets from user's past conversations are provided to provide context.
+        ## Previous Conversations:
+        {prev_convs}"""
     }]
-
 
 def conv_title_prompt(conversation):
 

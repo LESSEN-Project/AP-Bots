@@ -313,15 +313,13 @@ else:
 
         conv_id = st.session_state.conv_id if "conv_id" in st.session_state else conv_id
         search_filter = f"user_id == {st.session_state.user_id} and conv_id != {conv_id}"
-        
         similar_turns = st.session_state.db.hybrid_search(prompt, search_filter)
-        print(similar_turns)
 
         with st.chat_message("assistant"):
             with st.spinner("Generating response..."):
                 # user_style = parse_json(style_analysis(st.session_state, "\n".join(f"{m['content']}" for m in st.session_state.messages if m['role'] == "user")))
                 # print(user_style)
-                response = ap_bot_respond(st.session_state.chatbot, st.session_state.messages, prompt)
+                response = ap_bot_respond(st.session_state.chatbot, st.session_state.messages, similar_turns)
                 full_response = st.write_stream(response)
 
         cur_sentiment = sent_analysis(prompt)

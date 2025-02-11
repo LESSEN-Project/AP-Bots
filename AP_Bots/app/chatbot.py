@@ -66,10 +66,19 @@ def style_analysis(session_state, text):
 
     return llm.generate(prompt)
 
-def ap_bot_respond(chatbot, prev_messages, user_message):
+def ap_bot_respond(chatbot, cur_conv, prev_convs):
 
-    prompt = ap_bot_prompt(user_message) + prev_messages 
-    print(prompt)
+    all_past_turns = ""
+    for i, conv in enumerate(prev_convs):
+        cur_turn = f"Conversation {i+1}"
+        for turn in conv:
+            cur_turn = f"{cur_turn}\n{turn['role']}: {turn['text']}"
+        all_past_turns = f"{all_past_turns}\n{cur_turn}"
+
+    print(all_past_turns)
+
+    prompt = ap_bot_prompt(prev_convs) + cur_conv 
+    # print(prompt)
     response = chatbot.generate(
     prompt=prompt, stream=True
     )
