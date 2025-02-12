@@ -114,7 +114,6 @@ class ChatCollection:
             "text": text,
             "timestamp": timestamp,
         }
-        # Get embedding; note that self.embedder expects a list.
         embedding = self.embedder([text])[0]
         self.chat_turns.add(
             ids=[turn_id],
