@@ -38,15 +38,15 @@ def get_conv_string(unstructured_memory, include_title=False, include_assistant=
     return all_past_convs
 
 def get_unstructured_memory(user_conversations, title):
-
     all_past_convs = []
-    for conv in user_conversations:
-        if title == conv["title"]:
+    # Assuming user_conversations is a dict with a 'metadatas' key:
+    for conv in user_conversations.get("metadatas", []):
+        if conv.get("title") == title:
             continue                        
         all_past_convs.append({
-            "title": conv["title"],
-            "conv": conv["conversation"]})
-
+            "title": conv.get("title"),
+            "conv": conv.get("conversation")
+        })
     return all_past_convs
 
 def sent_analysis(text):
@@ -75,6 +75,7 @@ def ap_bot_respond(chatbot, cur_conv, prev_convs):
             cur_turn = f"{cur_turn}\n{turn['role']}: {turn['text']}"
         all_past_turns = f"{all_past_turns}\n{cur_turn}"
 
+    print(all_past_turns)
     prompt = ap_bot_prompt(all_past_turns) + cur_conv 
     response = chatbot.generate(
     prompt=prompt, stream=True

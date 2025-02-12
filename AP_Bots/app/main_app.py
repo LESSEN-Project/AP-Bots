@@ -1,20 +1,21 @@
 import time
-import random
 import os
 from datetime import datetime
-from collections.abc import Iterable
 import streamlit as st
 
 from AP_Bots.utils.output_parser import parse_json
 from AP_Bots.app.vectordb import VectorDB
-from AP_Bots.app.chatbot import stream_output, get_avail_llms, get_conv_topic, get_llm, sent_analysis, style_analysis, ap_bot_respond, get_unstructured_memory
-from AP_Bots.app.st_css_style import set_wide_sidebar, hide_sidebar, button_style, checkbox_font
-
-button_style()
-checkbox_font()
+from AP_Bots.app.chatbot import (
+    get_avail_llms,
+    get_conv_topic,
+    get_llm,
+    sent_analysis,
+    ap_bot_respond,
+    get_unstructured_memory
+)
+from AP_Bots.app.st_css_style import set_wide_sidebar, hide_sidebar
 
 if "available_models" not in st.session_state:
-
     available_bots, model_gpu_req, free_gpu_mem = get_avail_llms()
     st.session_state.available_bots = available_bots
     st.session_state.model_gpu_req = model_gpu_req
@@ -27,40 +28,31 @@ if "sentiment_tracker" not in st.session_state:
 if "db" not in st.session_state:
     st.session_state.db = VectorDB()
 
-# Initialize default chatbot
+
 if "chatbot" not in st.session_state:
     st.session_state.chatbot = get_llm()
 
 # -------------------- AUTHENTICATION FLOW --------------------
 if "logged_in" not in st.session_state:
-    # Hide sidebar on login pages
+
     hide_sidebar()
 
-    if 'auth_mode' not in st.session_state:
-        st.session_state.auth_mode = 'login'
+    if "auth_mode" not in st.session_state:
+        st.session_state.auth_mode = "login"
 
     with st.container():
-        # Main title spanning full width
         st.title("Welcome to AP-Bots")
-        
-        # Create two main columns
         col_logo, col_form = st.columns([1, 1])
         
         with col_logo:
-            # Logo display
             current_dir = os.path.dirname(os.path.abspath(__file__))
             logos_dir = os.path.join(current_dir, "logos")
-            st.image(
-                f"{logos_dir}/logo_transparent.png",
-                use_container_width=True
-            )
-
+            st.image(f"{logos_dir}/logo_transparent.png", use_container_width=True)
+        
         with col_form:
-            # Login/Register Form
-            st.subheader("Login" if st.session_state.auth_mode == 'login' else "New User Registration")
-            # st.markdown("---")
+            st.subheader("Login" if st.session_state.auth_mode == "login" else "New User Registration")
             
-            if st.session_state.auth_mode == 'login':
+            if st.session_state.auth_mode == "login":
                 with st.form("Login", clear_on_submit=True):
                     username = st.text_input("Username", key="login_uname")
                     password = st.text_input("Password", type="password", key="login_pwd")
@@ -70,7 +62,7 @@ if "logged_in" not in st.session_state:
                         login_btn = st.form_submit_button("Sign In", use_container_width=True)
                     with col2:
                         if st.form_submit_button("Create Account", use_container_width=True):
-                            st.session_state.auth_mode = 'signup'
+                            st.session_state.auth_mode = "signup"
                             st.rerun()
 
                     if login_btn:
@@ -86,9 +78,8 @@ if "logged_in" not in st.session_state:
                             else:
                                 st.error(message)
             
-            elif st.session_state.auth_mode == 'signup':
+            elif st.session_state.auth_mode == "signup":
                 with st.form("Sign Up", clear_on_submit=True):
-                    # st.subheader("New User Registration")
                     new_user = st.text_input("Choose Username", key="signup_uname")
                     new_pass = st.text_input("Choose Password", type="password", key="signup_pwd")
                     
@@ -97,7 +88,7 @@ if "logged_in" not in st.session_state:
                         signup_btn = st.form_submit_button("Register", use_container_width=True)
                     with col2:
                         if st.form_submit_button("Back to Login", use_container_width=True):
-                            st.session_state.auth_mode = 'login'
+                            st.session_state.auth_mode = "login"
                             st.rerun()
 
                     if signup_btn:
@@ -109,7 +100,7 @@ if "logged_in" not in st.session_state:
                                 if success:
                                     st.session_state.update({
                                         "logged_in": True,
-                                        "auth_mode": 'login',
+                                        "auth_mode": "login",
                                         "username": new_user,
                                         "user_id": user_id
                                     })
@@ -119,7 +110,6 @@ if "logged_in" not in st.session_state:
                                 else:
                                     st.error(message)
 
-        # App explanation below both columns
         st.markdown("---")
         st.subheader("About AP-Bots")
         st.markdown("""
@@ -153,9 +143,7 @@ else:
 
     if st.session_state.available_bots:
         with st.expander("🤖 Chatbot Selection", expanded=True):
-            # print(st.session_state.available_bots)
             default_index = st.session_state.available_bots.index(current_bot)
-                
             selected_bot = st.selectbox(
                 "Active Chatbot",
                 options=st.session_state.available_bots,
@@ -163,7 +151,6 @@ else:
                 key="bot_selector",
                 label_visibility="collapsed"
             )
-            
             if selected_bot != current_bot:
                 st.session_state["pending_bot"] = selected_bot
     else:
@@ -172,7 +159,6 @@ else:
     # --------------------- SIDEBAR -----------------------------
     with st.sidebar:
         st.title(f"Welcome, {st.session_state.username}!")
-
         if st.button("🚪 Logout", use_container_width=True):
             st.session_state.clear()
             st.rerun()
@@ -193,62 +179,67 @@ else:
                     st.rerun()
 
         st.markdown("---")
-
-        # Start a new chat session
         if st.button("🧹 New Chat", use_container_width=True):
             if "conv_id" in st.session_state:
                 del st.session_state["conv_id"]
             st.session_state.messages = []
-            st.session_state.title = None  # Reset title when starting a new chat
+            st.session_state.title = None  
             st.toast("New chat session started")
 
-        # Fetch all user conversations
-        user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
-        st.session_state.unstructured_memory = get_unstructured_memory(user_conversations, st.session_state.get("title", None))
+        user_convs_result = st.session_state.db.get_all_user_convs(st.session_state.user_id)
+        user_conversations = user_convs_result.get("metadatas", [])
+        st.session_state.unstructured_memory = get_unstructured_memory(user_convs_result, st.session_state.get("title", None))
 
-        # Sort conversations, prioritizing the current one if it exists
         if "conv_id" in st.session_state:
             current_conv_id = st.session_state.conv_id
             user_conversations = sorted(
                 user_conversations,
-                key=lambda x: (x["conv_id"] == current_conv_id, x["end_time"]),
+                key=lambda x: (x.get("conv_id") == current_conv_id, x.get("end_time")),
                 reverse=True
             )
         else:
-            user_conversations = sorted(user_conversations, key=lambda x: x["end_time"], reverse=True)
-
+            user_conversations = sorted(user_conversations, key=lambda x: x.get("end_time"), reverse=True)
+            
         for i, conv in enumerate(user_conversations):
             col1, col2 = st.columns([8, 1], gap="small")
-
-            is_current = "conv_id" in st.session_state and st.session_state.conv_id == conv["conv_id"]
-            button_label = f"➡️ {conv['title']}" if is_current else conv["title"]
-
+            is_current = "conv_id" in st.session_state and st.session_state.conv_id == conv.get("conv_id")
+            button_label = f"➡️ {conv.get('title')}" if is_current else conv.get("title")
+            
             with col1:
-                if st.button(button_label, key=f"load_conv_{conv['conv_id']}_{i}", use_container_width=True):
-                    st.session_state.conv_id = conv["conv_id"]
-                    st.session_state.title = conv["title"]
+                if st.button(button_label, key=f"load_conv_{conv.get('conv_id')}_{i}", use_container_width=True):
+                    st.session_state.conv_id = conv.get("conv_id")
+                    st.session_state.title = conv.get("title")
                     loaded_messages = []
-                    for turn in conv["conversation"]:
-                        loaded_messages.append({"role": "user", "content": turn["user_message"]})
-                        loaded_messages.append({"role": "assistant", "content": turn["assistant_message"]})
-                    st.session_state.messages = loaded_messages
-
-                    st.session_state.unstructured_memory = get_unstructured_memory(
-                        user_conversations, st.session_state.title
+                    
+                    turns_result = st.session_state.db.chat_turns_collection.get(
+                        where={"conv_id": conv.get("conv_id")},
+                        include=["metadatas", "documents"]
                     )
-
+                    if turns_result and turns_result.get("metadatas"):
+                        turns = []
+                        for meta, doc in zip(turns_result["metadatas"], turns_result["documents"]):
+                            turns.append({
+                                "role": meta["role"],
+                                "content": doc,
+                                "timestamp": meta["timestamp"]
+                            })
+                        sorted_turns = sorted(turns, key=lambda x: x["timestamp"])
+                        for turn in sorted_turns:
+                            loaded_messages.append({"role": turn["role"], "content": turn["content"]})
+                    
+                    st.session_state.messages = loaded_messages
+                    user_convs_result = st.session_state.db.get_all_user_convs(st.session_state.user_id)
+                    st.session_state.unstructured_memory = get_unstructured_memory(user_convs_result, st.session_state.title)
                     st.toast(f"Conversation '{conv['title']}' loaded.")
                     st.rerun()
-
+            
             with col2:
                 if st.button("🗑️", key=f"del_conv_{conv['conv_id']}_{i}", help="Delete this conversation", use_container_width=True):
                     st.session_state.db.delete_conversation(conv["conv_id"])
 
-                    # Refresh conversation list
-                    user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
-                    st.session_state.unstructured_memory = get_unstructured_memory(user_conversations, st.session_state.get("title", None))
+                    user_convs_result = st.session_state.db.get_all_user_convs(st.session_state.user_id)
+                    st.session_state.unstructured_memory = get_unstructured_memory(user_convs_result, st.session_state.get("title", None))
 
-                    # If the deleted conversation was the active one, reset conv_id and title
                     if "conv_id" in st.session_state and st.session_state.conv_id == conv["conv_id"]:
                         del st.session_state["conv_id"]
                         st.session_state.messages = []
@@ -257,27 +248,23 @@ else:
                     st.toast(f"Conversation '{conv['title']}' deleted.")
                     st.rerun()
 
+
         st.markdown("---")
 
-    # --------------------- MODEL RELOAD -----------------------------
     if "pending_bot" in st.session_state:
         selected_bot = st.session_state.pending_bot
         new_model_req = st.session_state.model_gpu_req.get(selected_bot, 0)
         
-        # Calculate actual available memory including the current model's allocation
         available_mem = st.session_state.free_gpu_mem + st.session_state.current_model_gpu
         
         with st.status(f"🚀 Loading {selected_bot}...", expanded=True) as status:
             if new_model_req <= available_mem:
                 
-                # Load the new model
                 st.session_state.chatbot = get_llm(selected_bot)
                 
-                # Update memory tracking
                 st.session_state.current_model_gpu = new_model_req
                 st.session_state.free_gpu_mem = available_mem - new_model_req
                 
-                # Update available bots list only once
                 st.session_state.available_bots = [
                     model for model, req in st.session_state.model_gpu_req.items()
                     if req <= st.session_state.free_gpu_mem
@@ -290,16 +277,13 @@ else:
                 st.error(f"Required: {new_model_req}GB, Available: {available_mem}GB")
                 del st.session_state["pending_bot"]
 
-    # --------------------- CHAT INTERFACE -----------------------------
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Display chat history
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # Process user input
     if prompt := st.chat_input("Message AP-Bot..."):
 
         if "conv_id" not in st.session_state:
@@ -312,7 +296,12 @@ else:
             st.markdown(prompt)
 
         conv_id = st.session_state.conv_id if "conv_id" in st.session_state else conv_id
-        search_filter = f"user_id == {st.session_state.user_id} and conv_id != {conv_id}"
+        search_filter = {
+            "$and": [
+                {"user_id": st.session_state.user_id},
+                {"conv_id": {"$ne": conv_id}}
+            ]
+        }
         similar_turns = st.session_state.db.hybrid_search(prompt, search_filter)
 
         with st.chat_message("assistant"):
