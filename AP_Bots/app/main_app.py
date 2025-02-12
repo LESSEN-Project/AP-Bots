@@ -3,7 +3,6 @@ import os
 from datetime import datetime
 import streamlit as st
 
-from AP_Bots.utils.output_parser import parse_json
 from AP_Bots.app.vectordb import VectorDB
 from AP_Bots.app.chatbot import (
     get_avail_llms,
@@ -11,9 +10,11 @@ from AP_Bots.app.chatbot import (
     get_llm,
     sent_analysis,
     ap_bot_respond,
-    get_unstructured_memory
+    get_unstructured_memory,
+    extract_personal_info
 )
 from AP_Bots.app.st_css_style import set_wide_sidebar, hide_sidebar
+from AP_Bots.app.knowledge_graph import KnowledgeGraph
 
 if "available_models" not in st.session_state:
     available_bots, model_gpu_req, free_gpu_mem = get_avail_llms()
@@ -28,9 +29,15 @@ if "sentiment_tracker" not in st.session_state:
 if "db" not in st.session_state:
     st.session_state.db = VectorDB()
 
-
 if "chatbot" not in st.session_state:
     st.session_state.chatbot = get_llm()
+
+if "kg" not in st.session_state:
+    neo4j_uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+    neo4j_user = os.environ.get("NEO4J_USER", "neo4j")
+    neo4j_password = os.environ.get("NEO4J_APBOTS_PASSWORD")
+    st.session_state.kg = KnowledgeGraph(neo4j_uri, neo4j_user, neo4j_password)
+
 
 # -------------------- AUTHENTICATION FLOW --------------------
 if "logged_in" not in st.session_state:
@@ -74,6 +81,8 @@ if "logged_in" not in st.session_state:
                                     "username": username,
                                     "user_id": user_id
                                 })
+
+                                st.session_state.kg.add_or_update_user(user_id, {"username": username})
                                 st.rerun()
                             else:
                                 st.error(message)
@@ -105,6 +114,8 @@ if "logged_in" not in st.session_state:
                                         "user_id": user_id
                                     })
                                     st.success("Account created! Logging you in...")
+                                    # Update the KG for the new user.
+                                    st.session_state.kg.add_or_update_user(user_id, {"username": new_user})
                                     time.sleep(1)
                                     st.rerun()
                                 else:
@@ -173,6 +184,7 @@ else:
             with col2:
                 if st.button("❌ Delete Account", use_container_width=True):
                     st.session_state.db.delete_user(st.session_state.user_id)
+                    st.session_state.kg.delete_user(st.session_state.user_id)
                     st.session_state.clear()
                     st.success("Account deleted")
                     time.sleep(1)
@@ -211,7 +223,7 @@ else:
                     st.session_state.title = conv.get("title")
                     loaded_messages = []
                     
-                    turns_result = st.session_state.db.chat_turns_collection.get(
+                    turns_result = st.session_state.db.chat_collection.chat_turns.get(
                         where={"conv_id": conv.get("conv_id")},
                         include=["metadatas", "documents"]
                     )
@@ -248,9 +260,9 @@ else:
                     st.toast(f"Conversation '{conv['title']}' deleted.")
                     st.rerun()
 
-
         st.markdown("---")
 
+    # --------------------- MODEL RELOAD -----------------------------
     if "pending_bot" in st.session_state:
         selected_bot = st.session_state.pending_bot
         new_model_req = st.session_state.model_gpu_req.get(selected_bot, 0)
@@ -261,7 +273,6 @@ else:
             if new_model_req <= available_mem:
                 
                 st.session_state.chatbot = get_llm(selected_bot)
-                
                 st.session_state.current_model_gpu = new_model_req
                 st.session_state.free_gpu_mem = available_mem - new_model_req
                 
@@ -277,8 +288,13 @@ else:
                 st.error(f"Required: {new_model_req}GB, Available: {available_mem}GB")
                 del st.session_state["pending_bot"]
 
+    # --------------------- CHAT INTERFACE -----------------------------
     if "messages" not in st.session_state:
         st.session_state.messages = []
+
+        # Prepend this context as a system message (only once per session)
+        # if not any(msg.get("role") == "system" for msg in st.session_state.messages):
+        #     st.session_state.messages.insert(0, {"role": "system", "content": kg_context})
 
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
@@ -306,13 +322,12 @@ else:
 
         with st.chat_message("assistant"):
             with st.spinner("Generating response..."):
-                # user_style = parse_json(style_analysis(st.session_state, "\n".join(f"{m['content']}" for m in st.session_state.messages if m['role'] == "user")))
-                # print(user_style)
-                response = ap_bot_respond(st.session_state.chatbot, st.session_state.messages, similar_turns)
+                user_kg_data = st.session_state.kg.query_user_knowledge(st.session_state.user_id)
+                response = ap_bot_respond(st.session_state.chatbot, st.session_state.messages, similar_turns, user_kg_data)
                 full_response = st.write_stream(response)
 
         cur_sentiment = sent_analysis(prompt)
-        st.session_state.sentiment_tracker.append(parse_json(cur_sentiment))
+        st.session_state.sentiment_tracker.append(cur_sentiment)
 
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
@@ -337,10 +352,14 @@ else:
             
             user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
             st.session_state.unstructured_memory = get_unstructured_memory(user_conversations, st.session_state.get("title", None))
-            st.rerun()
         
         else:
             st.session_state.db.update_conversation(
                 conv_id=st.session_state.conv_id,
                 turn=turn_json,
             )
+
+        extracted_info = extract_personal_info(st.session_state)        
+        st.session_state.kg.update_user_profile_from_conversation(st.session_state.user_id, extracted_info)
+
+        st.rerun()

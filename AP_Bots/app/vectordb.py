@@ -14,7 +14,6 @@ class UserCollection:
 
     def authenticate_user(self, username, password):
         res = self.collection.get(where={"user_name": username})
-        print(res)
         if not res["metadatas"]:
             return False, "User does not exist. Please sign up.", -1
         user_data = res["metadatas"][0]

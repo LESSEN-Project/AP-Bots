@@ -6,9 +6,11 @@ from AP_Bots.app.app_prompts import (
     conv_title_prompt,
     ap_bot_prompt,
     sent_analysis_prompt,
-    style_analysis_prompt
+    style_analysis_prompt,
+    personal_info_extraction_prompt
 )
 from AP_Bots.models import LLM
+from AP_Bots.utils.output_parser import parse_json
 
 def stream_output(output):
 
@@ -54,7 +56,7 @@ def sent_analysis(text):
     llm = get_llm("GPT-4o-mini", gen_params={"max_new_tokens": 128})
     prompt = sent_analysis_prompt(text)
 
-    return llm.generate(prompt)
+    return parse_json(llm.generate(prompt))
 
 def style_analysis(session_state, text):
 
@@ -66,7 +68,26 @@ def style_analysis(session_state, text):
 
     return llm.generate(prompt)
 
-def ap_bot_respond(chatbot, cur_conv, prev_convs):
+def extract_personal_info(session_state):
+
+    llm = get_llm("GPT-4o", gen_params={"max_new_tokens": 256})
+
+    conversation_text = "\n".join([msg["content"] for msg in session_state.messages if msg["role"] == "user"])
+    traits = session_state.kg.query_personality_knowledge()
+    hobbies = session_state.kg.query_hobby_knowledge()
+    
+    prompt = personal_info_extraction_prompt(conversation_text, hobbies, traits)
+    result = llm.generate(prompt)
+    try:
+        info = parse_json(result)
+    except Exception as e:
+        print(e)
+        info = {}
+    return info
+
+def ap_bot_respond(chatbot, cur_conv, prev_convs, user_info):
+
+    user_info_readable = format_user_knowledge(user_info)
 
     all_past_turns = ""
     for i, conv in enumerate(prev_convs):
@@ -75,8 +96,8 @@ def ap_bot_respond(chatbot, cur_conv, prev_convs):
             cur_turn = f"{cur_turn}\n{turn['role']}: {turn['text']}"
         all_past_turns = f"{all_past_turns}\n{cur_turn}"
 
-    print(all_past_turns)
-    prompt = ap_bot_prompt(all_past_turns) + cur_conv 
+    # print(all_past_turns)
+    prompt = ap_bot_prompt(all_past_turns, user_info_readable) + cur_conv 
     response = chatbot.generate(
     prompt=prompt, stream=True
     )
@@ -136,3 +157,46 @@ def get_conv_topic(conversation):
     title = title.strip('*')
 
     return title
+
+def format_user_knowledge(records):
+    """
+    Convert Neo4j records into a simple, readable string.
+    Dates are formatted without seconds (e.g. "2025-02-12 15:04"),
+    and relationships are shown in the format:
+      USER-relationship_type->relationship_name
+    """
+    if not records:
+        return "No user knowledge records found."
+
+    # Get the user node from the first record (assuming all records refer to the same user)
+    user_node = records[0]['u']
+    # Use the 'name' property if available, otherwise fallback to a generic label
+    user_name = user_node.get('name', 'User')
+
+    # Helper to format values, specifically datetime values.
+    def format_value(value):
+        # If the value has strftime, assume it's datetime-like and format it.
+        if hasattr(value, "strftime"):
+            return value.strftime("%Y-%m-%d %H:%M")
+        return value
+
+    # Build the user properties string.
+    user_props_lines = []
+    for key, value in user_node.items():
+        user_props_lines.append(f"  {key}: {format_value(value)}")
+    user_info = f"User: {user_name}\n" + "\n".join(user_props_lines)
+
+    # Build the relationships string in the format: USER-RELATIONSHIP_TYPE->TARGET_NAME
+    rel_lines = []
+    for record in records:
+        relationship = record['r']
+        target_node = record['n']
+        rel_type = relationship.type
+        # We use the target node's 'name' property as the relationship target name.
+        target_name = target_node.get('name', 'Unknown')
+        rel_lines.append(f"{user_name}-{rel_type}->{target_name}")
+
+    relationships_info = "Relationships:\n" + "\n".join("  " + line for line in rel_lines)
+
+    return user_info + "\n\n" + relationships_info
+

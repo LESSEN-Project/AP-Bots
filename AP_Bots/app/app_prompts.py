@@ -1,24 +1,59 @@
+def personal_info_extraction_prompt(conversation_text, current_hobbies="", current_personality_traits=""):
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You are an assistant specialized in personal information extraction. "
+                "Extract only the allowed information from the conversation. "
+                "Return your answer strictly as a JSON object with exactly two keys: 'user' and 'details'. "
+                "The 'user' key maps to an object with the following keys: 'name', 'surname', 'age', 'profession', 'education', 'ethnicity', and 'country_of_residence'. "
+                "The 'details' key maps to an object with two arrays: 'hobbies' and 'personality_traits'. "
+                "For the hobbies, each item must be in continuous tense. "
+                "If an extracted value consists of a noun and a verb, the verb must always come last, and all words must be combined with an underscore. "
+                "For example, if the user says they like to play the guitar, the output should be 'guitar_playing'. "
+                "For personality_traits, they should be single words. E.g. extraverted, shy, arrogant"
+                "Additionally, if any extracted hobby or personality trait is similar to one of the current values provided, "
+                "return the canonical form from the current list. "
+                "Do not include any extra information. "
+                "The output must be a JSON object with exactly this structure:\n"
+                "{\n"
+                '  "user": {\n'
+                '    "name": <string>,\n'
+                '    "surname": <string>,\n'
+                '    "age": <number or string>,\n'
+                '    "profession": <string>,\n'
+                '    "education": <string>,\n'
+                '    "ethnicity": <string>,\n'
+                '    "country_of_residence": <string>\n'
+                "  },\n"
+                '  "details": {\n'
+                '    "hobbies": [<string>, ...],\n'
+                '    "personality_traits": [<string>, ...]\n'
+                "  }\n"
+                "}"
+            )
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Current canonical hobbies: {current_hobbies}\n"
+                f"Current canonical personality_traits: {current_personality_traits}\n\n"
+                f"Extract the allowed personal information from the following conversation:\n\n{conversation_text}"
+            )
+        }
+    ]
 
-"""For better understanding the user, here are snippets from previous conversations you had:
-        <previous_conversations>
-        {prev_convs}
-        </previous_conversations>
-
-        Here is the current conversation you are having with the user:
-        <current_conversation>
-        {cur_conv}
-        </current_conversation>
-        
-        Give an appropriate answer to the user's message in the current conversation without explicitly mentioning the previous conversations. The previous conversation are there for context and reference only."""
-
-def ap_bot_prompt(prev_convs):
+def ap_bot_prompt(prev_convs, user_traits):
 
     return [{
         "role": "system",
-        "content": f"""You are a conversational assistant. Answer in the language you receive the message. Use English by default. Snippets from user's past conversations are provided to provide context.
-        ## Previous Conversations:
-        {prev_convs}"""
-    }]
+        "content": 
+        ("You are a conversational assistant. Answer in the language you receive the message. Use English by default.\n"
+         "Snippets from user's past conversations are provided for context.\n"
+        f"## Previous Conversations:\n{prev_convs}\n"
+        "Also you will receive some general information about the user from a knowledge graph.\n"
+        f"## User info:\n{user_traits}")
+        }]
 
 def conv_title_prompt(conversation):
 
