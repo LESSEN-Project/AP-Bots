@@ -121,6 +121,32 @@ class ChatCollection:
             embeddings=[embedding],
         )
 
+    def get_full_conversation_by_conv_id(self, conv_id):
+        """
+        Retrieves the entire conversation (all turns) for a given conversation ID,
+        and returns the turns sorted by timestamp.
+        """
+        # Retrieve all chat turns for the conversation using the conv_id
+        result = self.chat_turns.get(where={"conv_id": conv_id}, include=["metadatas", "documents"])
+        
+        # If no conversation turns are found, return an empty list
+        if not result["ids"]:
+            return []
+        
+        # Build a list of conversation turns with relevant information
+        conversation_turns = []
+        for meta, doc in zip(result["metadatas"], result["documents"]):
+            conversation_turns.append({
+                "turn_id": meta.get("turn_id"),
+                "role": meta["role"],
+                "text": doc,
+                "timestamp": meta["timestamp"],
+            })
+        
+        # Sort the conversation turns by timestamp to maintain the conversation order
+        conversation_turns.sort(key=lambda turn: turn["timestamp"])
+        return conversation_turns
+    
     def dense_search(self, query_text, search_filter, top_k=3, distance_threshold=0.5):
         results = self.chat_turns.query(
             query_texts=[query_text],
@@ -338,3 +364,54 @@ class VectorDB:
 
     def get_merged_conversation_window(self, conv_id, turn_ids, window_size=1, scored_turns=None):
         return self.chat_collection.get_merged_conversation_window(conv_id, turn_ids, window_size, scored_turns)
+
+    def get_all_conversations_string(self, user_id, current_conv_id=None, include_title=False, include_assistant=False):
+        """
+        Retrieves all past conversations for a given user_id from the database,
+        excluding the current conversation (if current_conv_id is provided), 
+        and returns them as a single formatted string.
+        
+        Parameters:
+            user_id (int): The ID of the user.
+            current_conv_id (optional): The conversation ID to exclude from the results.
+            include_title (bool): Whether to include conversation titles.
+            include_assistant (bool): Whether to include both user and assistant messages.
+        
+        Returns:
+            str: A string with all past conversations formatted turn by turn.
+        """
+        # Get all conversations for the user from the chat_history collection.
+        user_convs = self.get_all_user_convs(user_id)
+        all_conv_str = ""
+        
+        # Iterate over each conversation metadata.
+        for i, conv in enumerate(user_convs.get("metadatas", [])):
+            # Exclude the current conversation based on conv_id.
+            if current_conv_id is not None and conv.get("conv_id") == current_conv_id:
+                continue
+
+            conv_id = conv.get("conv_id")
+            # Retrieve the full conversation (all turns, sorted by timestamp)
+            full_conv = self.chat_collection.get_full_conversation_by_conv_id(conv_id)
+            
+            # Start building the conversation string.
+            conv_str = f"Conversation: {i}\n"
+            if include_title:
+                conv_str += f"Conversation Title: {conv.get('title', '')}\n"
+            
+            # Append each turn in the conversation.
+            for turn in full_conv:
+                if include_assistant:
+                    if turn["role"] == "user":
+                        conv_str += f"\nUser: {turn['text'].strip()}\n"
+                    elif turn["role"] == "assistant":
+                        conv_str += f"Assistant: {turn['text'].strip()}\n"
+                else:
+                    # Only include user messages.
+                    if turn["role"] == "user":
+                        conv_str += f"\n{turn['text'].strip()}"
+            
+            # Append the formatted conversation to the overall string.
+            all_conv_str += conv_str + "\n\n"
+        
+        return all_conv_str

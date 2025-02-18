@@ -21,10 +21,9 @@ class KnowledgeGraph:
         """
         filtered_props = {
             k: v.upper() if isinstance(v, str) else v
-            for k, v in properties.items() 
+            for k, v in properties.items()
             if v is not None and v != ""
         }
-
         with self.driver.session() as session:
             return session.execute_write(self._add_or_update_user_tx, user_id, filtered_props)
 
@@ -47,22 +46,21 @@ class KnowledgeGraph:
         """
         Update the user's profile based on structured extraction.
         """
-        print(extracted_info)
-        # 1) Update User properties
+        # Update User properties
         user_props = extracted_info.get("user", {})
         self.add_or_update_user(user_id, user_props)
 
-        # 2) Process hobbies
+        # Process hobbies
         for hobby in extracted_info.get("hobbies", []):
             hobby_id = hobby.lower().replace(" ", "_")
             self._create_or_update_hobby_and_relationship(user_id, hobby_id, hobby, "ENGAGES_IN")
 
-        # 3) Process personality traits
+        # Process personality traits
         for trait in extracted_info.get("personality_traits", []):
             trait_id = trait.lower().replace(" ", "_")
             self._create_or_update_personality_trait_and_relationship(user_id, trait_id, trait, "HAS_TRAIT")
         
-        # 4) Process preferences (merged likes and dislikes)
+        # Process preferences
         for preference in extracted_info.get("preferences", []):
             preference_id = preference.lower().replace(" ", "_")
             self._create_or_update_preference_and_relationship(user_id, preference_id, preference, "PREFERS")
@@ -79,10 +77,10 @@ class KnowledgeGraph:
             session.execute_write(self._create_or_update_hobby_tx, hobby_id, hobby_name)
             session.execute_write(
                 self._add_relationship_tx,
-                user_id, 
-                relation, 
-                "Hobby", 
-                {"id": hobby_id, "name": hobby_name}, 
+                user_id,
+                relation,
+                "Hobby",
+                {"id": hobby_id, "name": hobby_name},
                 {}
             )
 
@@ -111,10 +109,10 @@ class KnowledgeGraph:
             session.execute_write(self._create_or_update_personality_trait_tx, trait_id, trait_name)
             session.execute_write(
                 self._add_relationship_tx,
-                user_id, 
-                relation, 
-                "PersonalityTrait", 
-                {"id": trait_id, "name": trait_name}, 
+                user_id,
+                relation,
+                "PersonalityTrait",
+                {"id": trait_id, "name": trait_name},
                 {}
             )
 
@@ -143,10 +141,10 @@ class KnowledgeGraph:
             session.execute_write(self._create_or_update_preference_tx, preference_id, preference_name)
             session.execute_write(
                 self._add_relationship_tx,
-                user_id, 
-                relation, 
-                "Preference", 
-                {"id": preference_id, "name": preference_name}, 
+                user_id,
+                relation,
+                "Preference",
+                {"id": preference_id, "name": preference_name},
                 {}
             )
 
@@ -164,6 +162,70 @@ class KnowledgeGraph:
         """
         result = tx.run(query, preference_id=preference_id, preference_name=preference_name)
         return result.single()[0]
+
+    # -------------------- COMMUNICATION STYLE --------------------
+
+    def update_user_style_from_analysis(self, user_id, style_info):
+        """
+        Update the user's communication style based on the style analysis extraction.
+        The style_info should be a JSON object with keys:
+          - grammar_analysis
+          - vocabulary_analysis
+          - tone_and_personality
+          - additional_observations
+        """
+        # Create a unique ID for the communication style node for this user
+        style_id = f"{user_id}_style"
+        with self.driver.session() as session:
+            session.execute_write(self._create_or_update_style_tx, style_id, style_info)
+            session.execute_write(
+                self._add_relationship_tx,
+                user_id,
+                "HAS_COMMUNICATION_STYLE",
+                "CommunicationStyle",
+                {"id": style_id},
+                {}
+            )
+        return style_info
+
+    @staticmethod
+    def _create_or_update_style_tx(tx, style_id, style_info):
+        query = """
+        MERGE (cs:CommunicationStyle {id: $style_id})
+        ON CREATE SET cs.created_at = datetime(), cs.updated_at = datetime()
+        ON MATCH SET cs.updated_at = datetime()
+        SET cs.grammar_analysis = $grammar_analysis,
+            cs.vocabulary_analysis = $vocabulary_analysis,
+            cs.tone_and_personality = $tone_and_personality,
+            cs.additional_observations = $additional_observations
+        RETURN cs
+        """
+        params = {
+            "style_id": style_id,
+            "grammar_analysis": style_info.get("grammar_analysis", ""),
+            "vocabulary_analysis": style_info.get("vocabulary_analysis", ""),
+            "tone_and_personality": style_info.get("tone_and_personality", ""),
+            "additional_observations": style_info.get("additional_observations", "")
+        }
+        result = tx.run(query, **params)
+        return result.single()[0]
+
+    def query_style_knowledge(self, user_id):
+        """
+        Retrieve the CommunicationStyle node associated with the given user.
+        """
+        style_id = f"{user_id}_style"
+        with self.driver.session() as session:
+            return session.execute_read(self._query_style_knowledge_tx, style_id)
+
+    @staticmethod
+    def _query_style_knowledge_tx(tx, style_id):
+        query = """
+        MATCH (cs:CommunicationStyle {id: $style_id})
+        RETURN cs
+        """
+        result = tx.run(query, style_id=style_id)
+        return [record for record in result]
 
     # -------------------- RELATIONSHIPS --------------------
 
@@ -242,7 +304,7 @@ class KnowledgeGraph:
         """
         result = tx.run(query)
         return [record for record in result]
-        
+
     def query_preference_knowledge(self):
         """
         Retrieve all Preference nodes.
@@ -258,7 +320,7 @@ class KnowledgeGraph:
         """
         result = tx.run(query)
         return [record for record in result]
-        
+
     def delete_user(self, user_id):
         """
         Delete the User node (and all its relationships) from the graph.

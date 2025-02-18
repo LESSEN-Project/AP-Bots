@@ -84,25 +84,27 @@ def sent_analysis_prompt(text):
     }]
 
 def style_analysis_prompt(messages):
-    return [{
-        "role": "system",
-        "content": "You are an expert in conversation style and personality analysis."
-    },
-    {
-        "role": "user",
-        "content": f"""Please analyze the messages provided below to determine the speaker’s conversation style, grammar usage, vocabulary complexity, average message length, and any other relevant features that characterize their personality and tone. 
-                    You will receive messages from past conversations, but also from the current conversation. Focus on the messages from the current conversation, and use previous conversations as a tool to understand user's overall style.
-                    Return your findings as a JSON object with, at minimum, these keys:
-                    {{
-                    "grammar_analysis": "",
-                    "vocabulary_analysis": "",
-                    "average_message_length": "",
-                    "tone_and_personality": "",
-                    "additional_observations": "",
-                    }}
+    return [
+        {
+            "role": "system",
+            "content": "You are an expert in conversation style and personality analysis. Provide very concise findings."
+        },
+        {
+            "role": "user",
+            "content": f"""Analyze the messages below to extract the speaker's conversation style, grammar usage, vocabulary complexity, tone, and personality. Focus primarily on the current conversation.
+Return your analysis as a JSON object with very brief values for each key:
+{{
+    "grammar_analysis": "",
+    "vocabulary_analysis": "",
+    "tone_and_personality": "",
+    "additional_observations": ""
+}}
 
-                    <messages>
-                    {messages}
-                    </messages>
+<messages>
+{messages}
+</messages>
 
-                    Be sure to maintain the specified JSON format in your final response. Each JSON key should contain a concise value."""}]
+Ensure that each value is concise (preferably one sentence or less) and the JSON format is strictly followed."""
+        }
+    ]
+

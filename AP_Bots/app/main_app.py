@@ -10,8 +10,8 @@ from AP_Bots.app.chatbot import (
     get_llm,
     sent_analysis,
     ap_bot_respond,
-    get_unstructured_memory,
-    extract_personal_info
+    extract_personal_info,
+    style_analysis
 )
 from AP_Bots.app.st_css_style import set_wide_sidebar, hide_sidebar
 from AP_Bots.app.knowledge_graph import KnowledgeGraph
@@ -200,7 +200,6 @@ else:
 
         user_convs_result = st.session_state.db.get_all_user_convs(st.session_state.user_id)
         user_conversations = user_convs_result.get("metadatas", [])
-        st.session_state.unstructured_memory = get_unstructured_memory(user_convs_result, st.session_state.get("title", None))
 
         if "conv_id" in st.session_state:
             current_conv_id = st.session_state.conv_id
@@ -241,7 +240,6 @@ else:
                     
                     st.session_state.messages = loaded_messages
                     user_convs_result = st.session_state.db.get_all_user_convs(st.session_state.user_id)
-                    st.session_state.unstructured_memory = get_unstructured_memory(user_convs_result, st.session_state.title)
                     st.toast(f"Conversation '{conv['title']}' loaded.")
                     st.rerun()
             
@@ -250,7 +248,6 @@ else:
                     st.session_state.db.delete_conversation(conv["conv_id"])
 
                     user_convs_result = st.session_state.db.get_all_user_convs(st.session_state.user_id)
-                    st.session_state.unstructured_memory = get_unstructured_memory(user_convs_result, st.session_state.get("title", None))
 
                     if "conv_id" in st.session_state and st.session_state.conv_id == conv["conv_id"]:
                         del st.session_state["conv_id"]
@@ -350,7 +347,6 @@ else:
             )
             
             user_conversations = st.session_state.db.get_all_user_convs(st.session_state.user_id)
-            st.session_state.unstructured_memory = get_unstructured_memory(user_conversations, st.session_state.get("title", None))
         
         else:
             st.session_state.db.update_conversation(
@@ -361,4 +357,7 @@ else:
         extracted_info = extract_personal_info(st.session_state)        
         st.session_state.kg.update_user_profile_from_conversation(st.session_state.user_id, extracted_info)
 
+        user_style = style_analysis(st.session_state)
+        st.session_state.kg.update_user_style_from_analysis(st.session_state.user_id, user_style)
+        
         st.rerun()

@@ -21,36 +21,6 @@ def stream_output(output):
 def get_llm(model_name="GPT-4o-mini", gen_params={"max_new_tokens": 2048, "temperature": 1}):
     return LLM(model_name, gen_params=gen_params)
 
-def get_conv_string(unstructured_memory, include_title=False, include_assistant=False):
-
-    all_past_convs = ""
-
-    for i, conv in enumerate(unstructured_memory):
-        cur_turn = f"Conversation: {i}\n"
-        if include_title:
-            cur_turn = f"{cur_turn}Conversation Title: {conv['title']}\n"
-        for turn in conv["conv"]:
-            if include_assistant:
-                cur_turn = f"{cur_turn}\nUser: {turn['user_message'].strip()}\nAssistant: {turn['assistant_message'].strip()}"
-            else:
-                cur_turn = f"{cur_turn}\n{turn['user_message'].strip()}"
-    
-        all_past_convs = f"{all_past_convs}\n{cur_turn}\n"
-
-    return all_past_convs
-
-def get_unstructured_memory(user_conversations, title):
-    all_past_convs = []
-    # Assuming user_conversations is a dict with a 'metadatas' key:
-    for conv in user_conversations.get("metadatas", []):
-        if conv.get("title") == title:
-            continue                        
-        all_past_convs.append({
-            "title": conv.get("title"),
-            "conv": conv.get("conversation")
-        })
-    return all_past_convs
-
 def sent_analysis(text):
 
     llm = get_llm("GPT-4o-mini", gen_params={"max_new_tokens": 128})
@@ -58,15 +28,22 @@ def sent_analysis(text):
 
     return parse_json(llm.generate(prompt))
 
-def style_analysis(session_state, text):
+def style_analysis(session_state):
 
-    all_past_convs = get_conv_string(session_state.unstructured_memory)
-    cur_conv = f"{all_past_convs}\nCurrent Conversation:\n\n{text}"
+    all_past_convs = session_state.db.get_all_conversations_string(session_state.user_id, session_state.conv_id)
+    cur_conv = "\n".join(f"{m['role']}: {m['content']}" for m in session_state.messages)
+    cur_conv = f"{all_past_convs}\nCurrent Conversation:\n\n{cur_conv}"
 
     llm = get_llm("GPT-4o-mini", gen_params={"max_new_tokens": 256})
     prompt = style_analysis_prompt(cur_conv)
+    result = llm.generate(prompt)
 
-    return llm.generate(prompt)
+    try:
+        info = parse_json(result)
+    except Exception as e:
+        print(e)
+        info = {}
+    return info
 
 def extract_personal_info(session_state):
 
@@ -87,6 +64,58 @@ def extract_personal_info(session_state):
         info = {}
     return info
 
+def format_user_knowledge(records):
+    if not records:
+        return "No user knowledge records found."
+
+    user_node = records[0]['u']
+    user_name = user_node.get('name', 'User')
+
+    def format_value(value):
+        if hasattr(value, "strftime"):
+            return value.strftime("%Y-%m-%d %H:%M")
+        return value
+
+    # Exclude specific keys
+    exclude_keys = {"updated_at", "user_id", "created_at"}
+    user_props_lines = []
+    for key, value in user_node.items():
+        if key in exclude_keys:
+            continue
+        user_props_lines.append(f"  {key}: {format_value(value)}")
+    user_info = f"User: {user_name}\n" + "\n".join(user_props_lines)
+
+    rel_lines = []
+    for record in records:
+        relationship = record['r']
+        target_node = record['n']
+        rel_type = relationship.type
+
+        if rel_type == "HAS_COMMUNICATION_STYLE":
+            grammar = target_node.get('grammar_analysis', '')
+            vocab = target_node.get('vocabulary_analysis', '')
+            tone = target_node.get('tone_and_personality', '')
+            observations = target_node.get('additional_observations', '')
+            style_details = []
+            if grammar:
+                style_details.append(f"Grammar: {grammar}")
+            if vocab:
+                style_details.append(f"Vocabulary: {vocab}")
+            if tone:
+                style_details.append(f"Tone: {tone}")
+            if observations:
+                style_details.append(f"Observations: {observations}")
+            style_str = "; ".join(style_details)
+            # Output only the content inside the parentheses
+            rel_lines.append(f"{user_name}-[{rel_type}]->{style_str}")
+        else:
+            target_name = target_node.get('name', 'Unknown')
+            rel_lines.append(f"{user_name}-[{rel_type}]->{target_name}")
+
+    relationships_info = "Relationships:\n" + "\n".join("  " + line for line in rel_lines)
+
+    return user_info + "\n\n" + relationships_info
+
 def ap_bot_respond(chatbot, cur_conv, prev_convs, user_info):
 
     user_info_readable = format_user_knowledge(user_info)
@@ -98,9 +127,7 @@ def ap_bot_respond(chatbot, cur_conv, prev_convs, user_info):
             cur_turn = f"{cur_turn}\n{turn['role']}: {turn['text']}"
         all_past_turns = f"{all_past_turns}\n{cur_turn}"
 
-    # print(all_past_turns)
     prompt = ap_bot_prompt(all_past_turns, user_info_readable) + cur_conv 
-    print(prompt)
     response = chatbot.generate(
     prompt=prompt, stream=True
     )
@@ -160,34 +187,3 @@ def get_conv_topic(conversation):
     title = title.strip('*')
 
     return title
-
-def format_user_knowledge(records):
-
-    if not records:
-        return "No user knowledge records found."
-
-    user_node = records[0]['u']
-    user_name = user_node.get('name', 'User')
-
-    def format_value(value):
-        if hasattr(value, "strftime"):
-            return value.strftime("%Y-%m-%d %H:%M")
-        return value
-
-    user_props_lines = []
-    for key, value in user_node.items():
-        user_props_lines.append(f"  {key}: {format_value(value)}")
-    user_info = f"User: {user_name}\n" + "\n".join(user_props_lines)
-
-    rel_lines = []
-    for record in records:
-        relationship = record['r']
-        target_node = record['n']
-        rel_type = relationship.type
-        target_name = target_node.get('name', 'Unknown')
-        rel_lines.append(f"{user_name}-[{rel_type}]->{target_name}")
-
-    relationships_info = "Relationships:\n" + "\n".join("  " + line for line in rel_lines)
-
-    return user_info + "\n\n" + relationships_info
-
