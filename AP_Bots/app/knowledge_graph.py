@@ -19,9 +19,9 @@ class KnowledgeGraph:
         Timestamps (created_at and updated_at) are automatically set.
         Filters out None or empty values to avoid overwriting existing data with blanks.
         """
-        # Filter out empty/None to preserve existing data
         filtered_props = {
-            k: v for k, v in properties.items() 
+            k: v.upper() if isinstance(v, str) else v
+            for k, v in properties.items() 
             if v is not None and v != ""
         }
 
@@ -30,9 +30,6 @@ class KnowledgeGraph:
 
     @staticmethod
     def _add_or_update_user_tx(tx, user_id, properties):
-        """
-        MERGE on user_id, then set timestamps and update properties.
-        """
         query = """
         MERGE (u:User {user_id: $user_id})
         ON CREATE SET 
@@ -49,27 +46,6 @@ class KnowledgeGraph:
     def update_user_profile_from_conversation(self, user_id, extracted_info):
         """
         Update the user's profile based on structured extraction.
-
-        Example extracted_info structure:
-        {
-            "user": {
-                "name": <string>,
-                "surname": <string>,
-                "age": <number or string>,
-                "profession": <string>,
-                "education": <string>,
-                "ethnicity": <string>,
-                "country_of_residence": <string>
-            },
-            "details": {
-                "hobbies": [<string>, ...],
-                "personality_traits": [<string>, ...]
-            }
-        }
-        
-        This method updates the User node and creates/updates:
-          - Hobby nodes (relationship ENGAGES_IN)
-          - PersonalityTrait nodes (relationship HAS_TRAIT)
         """
         print(extracted_info)
         # 1) Update User properties
@@ -77,14 +53,19 @@ class KnowledgeGraph:
         self.add_or_update_user(user_id, user_props)
 
         # 2) Process hobbies
-        for hobby in extracted_info.get("details", {}).get("hobbies", []):
+        for hobby in extracted_info.get("hobbies", []):
             hobby_id = hobby.lower().replace(" ", "_")
             self._create_or_update_hobby_and_relationship(user_id, hobby_id, hobby, "ENGAGES_IN")
 
         # 3) Process personality traits
-        for trait in extracted_info.get("details", {}).get("personality_traits", []):
+        for trait in extracted_info.get("personality_traits", []):
             trait_id = trait.lower().replace(" ", "_")
             self._create_or_update_personality_trait_and_relationship(user_id, trait_id, trait, "HAS_TRAIT")
+        
+        # 4) Process preferences (merged likes and dislikes)
+        for preference in extracted_info.get("preferences", []):
+            preference_id = preference.lower().replace(" ", "_")
+            self._create_or_update_preference_and_relationship(user_id, preference_id, preference, "PREFERS")
 
         return extracted_info
 
@@ -152,6 +133,38 @@ class KnowledgeGraph:
         result = tx.run(query, trait_id=trait_id, trait_name=trait_name)
         return result.single()[0]
 
+    # -------------------- PREFERENCES --------------------
+
+    def _create_or_update_preference_and_relationship(self, user_id, preference_id, preference_name, relation="PREFERS"):
+        """
+        Create or update a Preference node and link the User with a preference relationship.
+        """
+        with self.driver.session() as session:
+            session.execute_write(self._create_or_update_preference_tx, preference_id, preference_name)
+            session.execute_write(
+                self._add_relationship_tx,
+                user_id, 
+                relation, 
+                "Preference", 
+                {"id": preference_id, "name": preference_name}, 
+                {}
+            )
+
+    @staticmethod
+    def _create_or_update_preference_tx(tx, preference_id, preference_name):
+        query = """
+        MERGE (p:Preference {id: $preference_id})
+        ON CREATE SET 
+            p.created_at = datetime(), 
+            p.updated_at = datetime()
+        ON MATCH SET 
+            p.updated_at = datetime()
+        SET p.name = $preference_name
+        RETURN p
+        """
+        result = tx.run(query, preference_id=preference_id, preference_name=preference_name)
+        return result.single()[0]
+
     # -------------------- RELATIONSHIPS --------------------
 
     @staticmethod
@@ -200,7 +213,7 @@ class KnowledgeGraph:
 
     def query_hobby_knowledge(self):
         """
-        Retrieve all nodes and relationships connected to the given User.
+        Retrieve all Hobby nodes.
         """
         with self.driver.session() as session:
             return session.execute_read(self._query_hobby_knowledge_tx)
@@ -216,7 +229,7 @@ class KnowledgeGraph:
 
     def query_personality_knowledge(self):
         """
-        Retrieve all nodes and relationships connected to the given User.
+        Retrieve all PersonalityTrait nodes.
         """
         with self.driver.session() as session:
             return session.execute_read(self._query_personality_knowledge_tx)
@@ -225,6 +238,22 @@ class KnowledgeGraph:
     def _query_personality_knowledge_tx(tx):
         query = """
         MATCH (p:PersonalityTrait)
+        RETURN p
+        """
+        result = tx.run(query)
+        return [record for record in result]
+        
+    def query_preference_knowledge(self):
+        """
+        Retrieve all Preference nodes.
+        """
+        with self.driver.session() as session:
+            return session.execute_read(self._query_preference_knowledge_tx)
+
+    @staticmethod
+    def _query_preference_knowledge_tx(tx):
+        query = """
+        MATCH (p:Preference)
         RETURN p
         """
         result = tx.run(query)

@@ -70,14 +70,16 @@ def style_analysis(session_state, text):
 
 def extract_personal_info(session_state):
 
-    llm = get_llm("GPT-4o", gen_params={"max_new_tokens": 256})
+    llm = get_llm("GPT-4o", gen_params={"max_new_tokens": 512})
 
     conversation_text = "\n".join([msg["content"] for msg in session_state.messages if msg["role"] == "user"])
-    traits = session_state.kg.query_personality_knowledge()
-    hobbies = session_state.kg.query_hobby_knowledge()
-    
-    prompt = personal_info_extraction_prompt(conversation_text, hobbies, traits)
+    traits = [t["p"]["name"] for t in session_state.kg.query_personality_knowledge()]
+    hobbies = [t["h"]["name"] for t in session_state.kg.query_hobby_knowledge()]
+    preferences = [t["p"]["name"] for t in session_state.kg.query_preference_knowledge()]
+
+    prompt = personal_info_extraction_prompt(conversation_text, hobbies, traits, preferences)
     result = llm.generate(prompt)
+
     try:
         info = parse_json(result)
     except Exception as e:
@@ -98,6 +100,7 @@ def ap_bot_respond(chatbot, cur_conv, prev_convs, user_info):
 
     # print(all_past_turns)
     prompt = ap_bot_prompt(all_past_turns, user_info_readable) + cur_conv 
+    print(prompt)
     response = chatbot.generate(
     prompt=prompt, stream=True
     )
@@ -159,42 +162,30 @@ def get_conv_topic(conversation):
     return title
 
 def format_user_knowledge(records):
-    """
-    Convert Neo4j records into a simple, readable string.
-    Dates are formatted without seconds (e.g. "2025-02-12 15:04"),
-    and relationships are shown in the format:
-      USER-relationship_type->relationship_name
-    """
+
     if not records:
         return "No user knowledge records found."
 
-    # Get the user node from the first record (assuming all records refer to the same user)
     user_node = records[0]['u']
-    # Use the 'name' property if available, otherwise fallback to a generic label
     user_name = user_node.get('name', 'User')
 
-    # Helper to format values, specifically datetime values.
     def format_value(value):
-        # If the value has strftime, assume it's datetime-like and format it.
         if hasattr(value, "strftime"):
             return value.strftime("%Y-%m-%d %H:%M")
         return value
 
-    # Build the user properties string.
     user_props_lines = []
     for key, value in user_node.items():
         user_props_lines.append(f"  {key}: {format_value(value)}")
     user_info = f"User: {user_name}\n" + "\n".join(user_props_lines)
 
-    # Build the relationships string in the format: USER-RELATIONSHIP_TYPE->TARGET_NAME
     rel_lines = []
     for record in records:
         relationship = record['r']
         target_node = record['n']
         rel_type = relationship.type
-        # We use the target node's 'name' property as the relationship target name.
         target_name = target_node.get('name', 'Unknown')
-        rel_lines.append(f"{user_name}-{rel_type}->{target_name}")
+        rel_lines.append(f"{user_name}-[{rel_type}]->{target_name}")
 
     relationships_info = "Relationships:\n" + "\n".join("  " + line for line in rel_lines)
 

@@ -1,19 +1,17 @@
-def personal_info_extraction_prompt(conversation_text, current_hobbies="", current_personality_traits=""):
+def personal_info_extraction_prompt(conversation_text, current_hobbies="", current_personality_traits="", current_preferences=""):
     return [
         {
             "role": "system",
             "content": (
                 "You are an assistant specialized in personal information extraction. "
                 "Extract only the allowed information from the conversation. "
-                "Return your answer strictly as a JSON object with exactly two keys: 'user' and 'details'. "
+                "Return your answer strictly as a JSON object with exactly four keys: 'user', 'hobbies', 'personality_traits', and 'preferences'. "
                 "The 'user' key maps to an object with the following keys: 'name', 'surname', 'age', 'profession', 'education', 'ethnicity', and 'country_of_residence'. "
-                "The 'details' key maps to an object with two arrays: 'hobbies' and 'personality_traits'. "
-                "For the hobbies, each item must be in continuous tense. "
-                "If an extracted value consists of a noun and a verb, the verb must always come last, and all words must be combined with an underscore. "
-                "For example, if the user says they like to play the guitar, the output should be 'guitar_playing'. "
-                "For personality_traits, they should be single words. E.g. extraverted, shy, arrogant"
-                "Additionally, if any extracted hobby or personality trait is similar to one of the current values provided, "
-                "return the canonical form from the current list. "
+                "The 'hobbies', 'personality_traits', and 'preferences' keys map to arrays of strings. "
+                "For the hobbies, each item must be in continuous tense. If an extracted value consists of a noun and a verb, the verb must always come last, and all words must be combined with an underscore. For example, if the user says they like to play the guitar, the output should be 'guitar_playing'. "
+                "For personality_traits, they should be single words (e.g., extraverted, shy, arrogant). "
+                "For preferences, follow the same formatting rules as hobbies. Preferences include preferred way of doings things, but also likes and dislikes."
+                "Additionally, if any extracted hobby, personality trait, or preference is similar to one of the current values provided, return the canonical form from the current list. "
                 "Do not include any extra information. "
                 "The output must be a JSON object with exactly this structure:\n"
                 "{\n"
@@ -26,10 +24,9 @@ def personal_info_extraction_prompt(conversation_text, current_hobbies="", curre
                 '    "ethnicity": <string>,\n'
                 '    "country_of_residence": <string>\n'
                 "  },\n"
-                '  "details": {\n'
-                '    "hobbies": [<string>, ...],\n'
-                '    "personality_traits": [<string>, ...]\n'
-                "  }\n"
+                '  "hobbies": [<string>, ...],\n'
+                '  "personality_traits": [<string>, ...],\n'
+                '  "preferences": [<string>, ...]\n'
                 "}"
             )
         },
@@ -37,7 +34,8 @@ def personal_info_extraction_prompt(conversation_text, current_hobbies="", curre
             "role": "user",
             "content": (
                 f"Current canonical hobbies: {current_hobbies}\n"
-                f"Current canonical personality_traits: {current_personality_traits}\n\n"
+                f"Current canonical personality_traits: {current_personality_traits}\n"
+                f"Current canonical preferences: {current_preferences}\n\n"
                 f"Extract the allowed personal information from the following conversation:\n\n{conversation_text}"
             )
         }

@@ -328,7 +328,6 @@ else:
 
         cur_sentiment = sent_analysis(prompt)
         st.session_state.sentiment_tracker.append(cur_sentiment)
-
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
         turn_json = {
