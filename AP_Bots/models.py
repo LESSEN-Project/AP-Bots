@@ -2,6 +2,7 @@ import configparser
 import os
 from threading import Thread
 from pathlib import Path
+import copy
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -177,9 +178,10 @@ class LLM:
         :return: A standardized list of dicts with parameters injected.
         """
         # If prompt is None, use default_prompt
+        default_prompt = copy.deepcopy(self.default_prompt)
         if prompt is None:
-            if hasattr(self, "default_prompt") and self.default_prompt:
-                prompt = self.default_prompt
+            if default_prompt:
+                prompt = default_prompt
             else:
                 raise ValueError("No prompt provided and no default prompt available.")
 
@@ -201,8 +203,8 @@ class LLM:
 
         # If a default prompt exists and prompt was not already the default,
         # prepend the default_prompt (avoid duplicating if prompt came from default_prompt).
-        if not (prompt == self.default_prompt) and hasattr(self, "default_prompt") and self.default_prompt:
-            prompt = self.default_prompt + prompt
+        if not (prompt == default_prompt) and self.default_prompt:
+            prompt = default_prompt + prompt
 
         # Format each message's content if parameters are provided.
         if params and isinstance(params, dict):
