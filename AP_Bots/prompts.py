@@ -96,7 +96,7 @@ def amazon_BFI_analysis(text):
                        Respond in JSON format where each trait is a key, and the value is the corresponding score of the trait. Do not output anything besides the json.""")
     }]
                     
-def get_lamp_prompts(dataset_num: int, repetition_step) -> str:
+def get_lamp_prompts(dataset_num: int) -> str:
 
     lamp_prompts = {
         4: _lamp_prompt_4,
@@ -104,9 +104,9 @@ def get_lamp_prompts(dataset_num: int, repetition_step) -> str:
         7: _lamp_prompt_7
     }
     
-    return lamp_prompts.get(dataset_num)(repetition_step)
+    return lamp_prompts.get(dataset_num)()
 
-def _lamp_prompt_4(repetition_step) -> str:
+def _lamp_prompt_4() -> str:
 
     return strip_all("""You are a news editor that generates titles for articles. You will be provided a set of features to help you understand your writing style.
                     First feature you will receive is similar article-title pairs from your past works:
@@ -124,7 +124,7 @@ def _lamp_prompt_4(repetition_step) -> str:
                     Using the features, generate the proper title. If you haven't received some of the features, only make use of the provided ones. Only output the title and nothing else.
                     Article: {query}\nTitle:""")
 
-def _lamp_prompt_5(repetition_step) -> str:
+def _lamp_prompt_5() -> str:
 
     return strip_all("""You are a scholar that generates titles for abstracts. You will be provided a set of features to help you understand your writing style.
                      First feature you will receive is similar abstract-title pairs from your past works:
@@ -142,7 +142,7 @@ def _lamp_prompt_5(repetition_step) -> str:
                      Using the features, generate the proper title. If you haven't received some of the features, only make use of the provided ones. Only output the title and nothing else.
                      \nAbstract: {query}\nTitle:""")
 
-def _lamp_prompt_7(repetition_step) -> str:
+def _lamp_prompt_7() -> str:
 
     return strip_all("""You are a Twitter user. Here is a set of your past tweets:
                      <pasttweets>

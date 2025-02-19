@@ -19,7 +19,7 @@ import google.generativeai as genai
 
 class LLM:
 
-    def __init__(self, model_name, model_params=None, gen_params=None) -> None:
+    def __init__(self, model_name, default_prompt=None, model_params=None, gen_params=None) -> None:
         
         login(token=os.getenv("HF_API_KEY"), new_session=False)
         self.cfg = LLM.get_cfg()[model_name]
@@ -33,6 +33,7 @@ class LLM:
         self.model_params = self.get_model_params(model_params)
         self.gen_params = self.get_gen_params(gen_params)
         self.model = self.init_model()
+        self.default_prompt = default_prompt if default_prompt is not None else []
 
     @staticmethod
     def get_cfg():
@@ -159,6 +160,60 @@ class LLM:
                     low_cpu_mem_usage=True,
                     device_map="auto")
 
+    def format_prompt(self, prompt, params=None):
+        """
+        Ensure that the prompt is a list of dictionaries in the format:
+        [{"role": <role>, "content": <content>}, ...].
+        
+        - If prompt is None, use self.default_prompt.
+        - If prompt is a string, convert it into a list with one dict using role "user".
+        - If prompt is a list, any non-dict element is assumed to be a string and converted accordingly.
+        
+        If neither prompt nor self.default_prompt is provided, raise an error.
+        Then, if params are provided, format each message's content using str.format().
+        
+        :param prompt: A string, list (of dicts or strings), or None representing the prompt.
+        :param params: A dict of parameters to format the content strings.
+        :return: A standardized list of dicts with parameters injected.
+        """
+        # If prompt is None, use default_prompt
+        if prompt is None:
+            if hasattr(self, "default_prompt") and self.default_prompt:
+                prompt = self.default_prompt
+            else:
+                raise ValueError("No prompt provided and no default prompt available.")
+
+        # Normalize prompt into a list of dicts.
+        if isinstance(prompt, str):
+            prompt = [{"role": "user", "content": prompt}]
+        elif isinstance(prompt, list):
+            new_prompt = []
+            for item in prompt:
+                if isinstance(item, dict):
+                    new_prompt.append(item)
+                elif isinstance(item, str):
+                    new_prompt.append({"role": "user", "content": item})
+                else:
+                    raise ValueError("Each item in the prompt list must be either a dict or a string.")
+            prompt = new_prompt
+        else:
+            raise TypeError("Prompt must be either a string, a list, or None.")
+
+        # If a default prompt exists and prompt was not already the default,
+        # prepend the default_prompt (avoid duplicating if prompt came from default_prompt).
+        if not (prompt == self.default_prompt) and hasattr(self, "default_prompt") and self.default_prompt:
+            prompt = self.default_prompt + prompt
+
+        # Format each message's content if parameters are provided.
+        if params and isinstance(params, dict):
+            for message in prompt:
+                if "content" in message and isinstance(message["content"], str):
+                    try:
+                        message["content"] = message["content"].format(**params)
+                    except Exception as e:
+                        raise ValueError("Error formatting prompt content: " + str(e))
+        return prompt
+
     def get_avail_space(self, prompt):
 
         avail_space = self.context_length - self.gen_params[self.name_token_var] - self.count_tokens(prompt)
@@ -178,24 +233,27 @@ class LLM:
        
     def count_tokens(self, prompt):
 
-        if isinstance(prompt, list):
-            prompt = "\n".join([turn["content"] for turn in prompt])
+        prompt = self.format_prompt(prompt)
+        
+        prompt_text = "\n".join([turn["content"] for turn in prompt])
+        
         if self.provider == "OPENAI":
             encoding = tiktoken.encoding_for_model(self.repo_id)
-            return len(encoding.encode(prompt))
+            return len(encoding.encode(prompt_text))
         elif self.provider == "GOOGLE":
-            return self.model.count_tokens(prompt).total_tokens
+            return self.model.count_tokens(prompt_text).total_tokens
         elif self.provider == "ANTHROPIC":
-            return self.model.count_tokens(prompt)
+            return self.model.count_tokens(prompt_text)
         else:
-            return len(self.tokenizer(prompt).input_ids)
+            return len(self.tokenizer(prompt_text).input_ids)
         
     def prepare_context(self, prompt, context, query=None, chat_history=[]):
 
+        prompt = self.format_prompt(prompt)
+        
         if chat_history:
             chat_history = self.trunc_chat_history(chat_history)
-        if isinstance(prompt, str):
-            prompt = [{"role": "user", "content": prompt}]
+        
         query_len = self.count_tokens(query) if query else 0
         avail_space = self.get_avail_space(prompt + chat_history) - query_len  
         if avail_space:         
@@ -210,7 +268,9 @@ class LLM:
         else:
             return -1
 
-    def generate(self, prompt, stream=False, gen_params=None):
+    def generate(self, prompt=None, stream=False, gen_params=None, prompt_params=None):
+
+        prompt = self.format_prompt(prompt, prompt_params)
 
         if not gen_params:
             gen_params = self.gen_params
@@ -218,8 +278,9 @@ class LLM:
             gen_params = self.get_gen_params(gen_params)
 
         if self.provider in ["GROQ", "DEEPSEEK", "OPENAI"]:
-
-            response = self.model.chat.completions.create(model=self.repo_id, messages=prompt, stream=stream, **gen_params)
+            response = self.model.chat.completions.create(
+                model=self.repo_id, messages=prompt, stream=stream, **gen_params
+            )
             if stream:
                 def stream_response():
                     has_reasoning = False
@@ -231,46 +292,42 @@ class LLM:
 
                     for chunk in response:
                         delta = chunk.choices[0].delta
-                        
                         if hasattr(delta, 'reasoning_content') and delta.reasoning_content:
                             has_reasoning = True 
                             reasoning_content += delta.reasoning_content
                             yield delta.reasoning_content
-                        
                         elif hasattr(delta, 'content') and delta.content:
                             if has_reasoning and not finished_thinking_yielded:
                                 yield "\n\n\n**Finished Thinking!**\n\n\n"
                                 finished_thinking_yielded = True
-
                             yield delta.content
-                    
                     if has_reasoning and not finished_thinking_yielded:
                         yield "\n\n\n**Finished Thinking!**\n\n\n"
-
                 return stream_response()
-                            
+                        
             output = response.choices[0].message.content
             if self.provider == "DEEPSEEK" and self.cfg.get("reason"):
                 reasoning_steps = response.choices[0].message.reasoning_content
                 output = f"**Thinking**...\n\n\n{reasoning_steps}\n\n\n**Finished thinking!**\n\n\n{output}"
 
         elif self.provider == "ANTHROPIC":
-
             if prompt[0]["role"] == "system":
                 sys_msg = prompt[0]["content"]
                 prompt = prompt[1:]
             else:
                 sys_msg = ""
-
             if stream:
-                stream = self.model.messages.stream(model=self.repo_id, messages=prompt, system=sys_msg, **gen_params).__enter__()
+                stream = self.model.messages.stream(
+                    model=self.repo_id, messages=prompt, system=sys_msg, **gen_params
+                ).__enter__()
                 return stream.text_stream
             else:
-                response = self.model.messages.create(model=self.repo_id, messages=prompt, system=sys_msg, **gen_params)
+                response = self.model.messages.create(
+                    model=self.repo_id, messages=prompt, system=sys_msg, **gen_params
+                )
                 output = response.content[0].text   
 
         elif self.provider == "GOOGLE":
-
             messages = []
             for turn in prompt:
                 role = "user" if turn["role"] in ["user", "system"] else "model"
@@ -278,15 +335,15 @@ class LLM:
                     "role": role,
                     "parts": [turn["content"]]
                 })
-            response = self.model.generate_content(messages, generation_config=genai.types.GenerationConfig(**gen_params))
-            output = output.text 
+            response = self.model.generate_content(
+                messages, generation_config=genai.types.GenerationConfig(**gen_params)
+            )
+            output = response.text 
 
         else:
-            
             if self.family in ["MISTRAL", "GEMMA"]:
                 if len(prompt) > 1:
                     prompt = [{"role": "user", "content": "\n".join([turn["content"] for turn in prompt])}]
-
             if self.provider == "GGUF":
                 response = self.model.create_chat_completion(prompt, stream=False, **gen_params)
                 output = response["choices"][-1]["message"]["content"]
@@ -299,6 +356,7 @@ class LLM:
                 output = pipe(prompt)[0]["generated_text"][-1]["content"]
 
         return output
+
     
     async def stream_hf_output(self, prompt, gen_params):
 
