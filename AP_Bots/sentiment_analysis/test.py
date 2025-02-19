@@ -1,5 +1,7 @@
 import json
 import argparse
+import subprocess
+import sys
 from datasets import load_dataset
 
 from AP_Bots.models import LLM
@@ -12,7 +14,7 @@ parser.add_argument("-l", "--language", default="nl", type=str)
 parser.add_argument("-ob", "--openai_batch", default=False, action=argparse.BooleanOptionalAction)
 args = parser.parse_args()
 
-llm_list = ["GPT-4o-mini", "LLAMA-3.1-8B", "LLAMA-3.2-3B", "GEMMA-2-2B"]
+llm_list = ["QWEN-2.5-14B-1M", "QWEN-2.5-7B-1M", "LLAMA-3.1-8B"]
 
 translator = LLM("GPT-4o-mini", default_prompt=get_translate_prompt())
 
@@ -27,6 +29,8 @@ for llm in llm_list:
     if args.language == "nl":
         classifier = LLM(llm, default_prompt=get_classifier_prompt_nl())
 
+    subprocess.run("gpustat")
+
     all_res = []
     exp_name = f"preds_{llm}_{args.language}_k({args.few_k})"
 
@@ -35,7 +39,9 @@ for llm in llm_list:
         try:
             params = {"text": str(daily_dialog_test["dialog"][i])}
             translated_text = translator.generate(prompt_params=params)
+            print(translated_text)
             pred = classifier.generate(prompt_params={"text": translated_text, "few_shot_examples": few_shot_examples})
+            print(pred)
             all_res.append([emotion_labels_inverse[p] for p in eval(pred)])
         except Exception as e:
             print(e)
@@ -43,3 +49,5 @@ for llm in llm_list:
             
         with open(f"{exp_name}.json", "w") as f:
             json.dump(all_res, f)
+
+        sys.stdout.flush()
