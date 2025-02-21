@@ -10,7 +10,6 @@ from AP_Bots.app.app_prompts import (
     personal_info_extraction_prompt
 )
 from AP_Bots.models import LLM
-from AP_Bots.utils.output_parser import parse_json
 
 def stream_output(output):
 
@@ -26,7 +25,7 @@ def sent_analysis(text):
     llm = get_llm("GPT-4o-mini", gen_params={"max_new_tokens": 128})
     prompt = sent_analysis_prompt(text)
 
-    return parse_json(llm.generate(prompt))
+    return llm.generate(prompt, json_output=True)
 
 def style_analysis(session_state):
 
@@ -36,14 +35,9 @@ def style_analysis(session_state):
 
     llm = get_llm("GPT-4o-mini", gen_params={"max_new_tokens": 256})
     prompt = style_analysis_prompt(cur_conv)
-    result = llm.generate(prompt)
+    result = llm.generate(prompt, json_output=True)
 
-    try:
-        info = parse_json(result)
-    except Exception as e:
-        print(e)
-        info = {}
-    return info
+    return result
 
 def extract_personal_info(session_state):
 
@@ -55,14 +49,9 @@ def extract_personal_info(session_state):
     preferences = [t["p"]["name"] for t in session_state.kg.query_preference_knowledge()]
 
     prompt = personal_info_extraction_prompt(conversation_text, hobbies, traits, preferences)
-    result = llm.generate(prompt)
+    result = llm.generate(prompt, json_output=True)
 
-    try:
-        info = parse_json(result)
-    except Exception as e:
-        print(e)
-        info = {}
-    return info
+    return result
 
 def format_user_knowledge(records):
     if not records:

@@ -1,21 +1,5 @@
 import json
 import re
-import yaml
-
-def parse_json(output):
-
-    try:
-        idx = output.find("{")
-        if idx != 0:
-            output = output[idx:]
-            if output.endswith("```"):
-                output = output[:-3]
-        output = json.loads(output, strict=False)
-    except Exception as e:
-        print(output)
-        print(e)
-
-    return output
 
 def parse_cot_output(output: str) -> str:
 
