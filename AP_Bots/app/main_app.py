@@ -17,10 +17,8 @@ from AP_Bots.app.st_css_style import set_wide_sidebar, hide_sidebar
 from AP_Bots.app.knowledge_graph import KnowledgeGraph
 
 if "available_models" not in st.session_state:
-    available_bots, model_gpu_req, free_gpu_mem = get_avail_llms()
+    available_bots = get_avail_llms()
     st.session_state.available_bots = available_bots
-    st.session_state.model_gpu_req = model_gpu_req
-    st.session_state.free_gpu_mem = free_gpu_mem
     st.session_state.current_model_gpu = 0
 
 if "sentiment_tracker" not in st.session_state:
@@ -140,17 +138,14 @@ else:
 
     with st.expander("ℹ️ Resource Information", expanded=False):
         st.info(f"""
-        **Available GPU Memory:** {st.session_state.free_gpu_mem:.1f} GB
-        **Current Model Usage:** {st.session_state.current_model_gpu:.1f} GB
+        **Available Models:** {len(st.session_state.available_bots)} models loaded
         """)
         
-        show_all_models = st.checkbox("Show all models and their GPU requirements")
+        show_all_models = st.checkbox("Show all models")
         if show_all_models:
-            st.write("**Model Requirements:**")
-            for model in st.session_state.model_gpu_req:
-                req = st.session_state.model_gpu_req.get(model, "Unknown")
-                status = "🟢 Available" if model in st.session_state.available_bots else "🔴 Unavailable"
-                st.write(f"- **{model}**: {req} GB ({status})")
+            st.write("**Available Models:**")
+            for model in st.session_state.available_bots:
+                st.write(f"- **{model}**")
 
     if st.session_state.available_bots:
         with st.expander("🤖 Chatbot Selection", expanded=True):
@@ -262,28 +257,11 @@ else:
     # --------------------- MODEL RELOAD -----------------------------
     if "pending_bot" in st.session_state:
         selected_bot = st.session_state.pending_bot
-        new_model_req = st.session_state.model_gpu_req.get(selected_bot, 0)
-        
-        available_mem = st.session_state.free_gpu_mem + st.session_state.current_model_gpu
         
         with st.status(f"🚀 Loading {selected_bot}...", expanded=True) as status:
-            if new_model_req <= available_mem:
-                
-                st.session_state.chatbot = get_llm(selected_bot)
-                st.session_state.current_model_gpu = new_model_req
-                st.session_state.free_gpu_mem = available_mem - new_model_req
-                
-                st.session_state.available_bots = [
-                    model for model, req in st.session_state.model_gpu_req.items()
-                    if req <= st.session_state.free_gpu_mem
-                ]
-                
-                status.update(label=f"{selected_bot} loaded successfully!", state="complete")
-                del st.session_state["pending_bot"]
-            else:
-                status.update(label=f"❌ Not enough GPU memory for {selected_bot}", state="error")
-                st.error(f"Required: {new_model_req}GB, Available: {available_mem}GB")
-                del st.session_state["pending_bot"]
+            st.session_state.chatbot = get_llm(selected_bot)
+            status.update(label=f"{selected_bot} loaded successfully!", state="complete")
+            del st.session_state["pending_bot"]
 
     # --------------------- CHAT INTERFACE -----------------------------
     if "messages" not in st.session_state:

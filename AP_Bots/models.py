@@ -159,7 +159,6 @@ class LLM:
                     self.repo_id,
                     **self.model_params,
                     quantization_config=bnb_config,
-                    low_cpu_mem_usage=True,
                     device_map="auto")
 
     def format_prompt(self, prompt, params=None):
